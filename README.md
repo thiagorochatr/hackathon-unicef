@@ -1,0 +1,121 @@
+# Custódia verificável — rede de proteção à infância
+
+Protótipo para o **UNICEF Youth Challenge Blockchain 2026**, pilar Proteção à Infância.
+
+Duas ideias em uma:
+
+1. **Cruzar sinais entre órgãos sem que nenhum veja o dado do outro.** UBS, escola e CRAS mandam
+   um sinal cifrado sobre a mesma criança. Se dois ou mais coincidem, sai um alerta. Nenhum órgão
+   enxerga o registro do outro.
+2. **Fazer o repasse do caso deixar rastro.** Cada passo — quem recebeu, quem assumiu, qual o prazo,
+   para quem passou — vira uma transação assinada na Solana. Se o prazo vence e ninguém aceita, o
+   caso vai sozinho para o Ministério Público.
+
+**Nenhum dado de criança vai para a rede, nem cifrado.** O registro é permanente e a criança de hoje
+ainda vai ser adulta por uns 80 anos. O que sobe é só um número opaco, chaves de órgãos, hashes e
+horários.
+
+## O que já funciona de verdade e o que ainda é encenação
+
+| Parte | Situação |
+|---|---|
+| Programa na Solana devnet (abrir, passar adiante, aceitar, ir ao MP, encerrar, marcar presença) | **real e verificável no explorer** |
+| Telas de custódia lendo o caso da rede | **real** — a tela pergunta à rede a cada 3 s |
+| Cruzamento cifrado dos sinais | **real** — Microsoft SEAL (BFV), soma feita sem nenhuma chave secreta |
+| Apelido da criança | **real** — HMAC-SHA256 com chave de serviço, não um resumo simples do CPF |
+| Chave repartida entre órgãos | ainda não — a chave do comitê existe inteira em um lugar só |
+| Comparação dentro do envelope | ainda não — hoje o comitê descobre quantos sinais coincidiram |
+| Marcar presença de cada órgão | **real** — um selo por período gravado na Solana; a falta dele vira alerta |
+| Denúncia protegida (ZK) | ainda não — é a próxima parte do plano |
+
+Programa na devnet: [`FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E`](https://explorer.solana.com/address/FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E?cluster=devnet)
+
+## A criptografia, em uma olhada
+
+Os arquivos estão separados de propósito, para que "o nó não tem a chave" seja
+verdade no código e não promessa em slide:
+
+```
+src/lib/fhe/parametros.ts     parâmetros públicos do esquema (BFV, grau 4096)
+src/lib/fhe/comite.ts         única parte com a chave — ela NÃO é exportada daqui
+src/lib/fhe/orgao.ts          fecha envelopes usando só a chave pública
+src/lib/fhe/noDeCruzamento.ts soma envelopes; não importa `comite` em lugar nenhum
+src/lib/pseudonimo.ts         apelido da criança via HMAC-SHA256 com chave
+```
+
+Cada envelope tem cerca de 118 mil letras. A tela do cruzamento mostra a mesma
+soma aberta de dois jeitos: com a chave certa dá o número de sinais que
+coincidiram; com uma chave qualquer dá um número sem sentido.
+
+## Como rodar
+
+Precisa de: Node 20+, pnpm, Rust, Solana CLI e Anchor 1.1.2.
+
+```bash
+# 1. dependências
+pnpm install
+cd app && pnpm install && cd ..
+
+# 2. chaves dos órgãos (ficam fora do Git) e saldo na devnet
+mkdir -p keys
+for n in comite ubs escola cras creas ct mp; do
+  solana-keygen new --no-bip39-passphrase --silent -o keys/$n.json
+  solana transfer "$(solana address -k keys/$n.json)" 0.5 --allow-unfunded-recipient -u devnet
+done
+
+# 3. compilar e publicar
+anchor build
+solana program deploy target/deploy/custodia.so \
+  --program-id target/deploy/custodia-keypair.json -u devnet
+
+# 4. cadastrar os órgãos e apontar o Ministério Público
+ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
+ANCHOR_WALLET=$HOME/.config/solana/id.json \
+pnpm exec ts-node scripts/preparar-devnet.ts
+
+# 5. testes (rodam contra a devnet; podem ser repetidos)
+anchor test --skip-local-validator --skip-deploy --skip-build
+
+# 6. a aplicação
+cd app && pnpm dev
+```
+
+As chaves dos órgãos ficam **no servidor** e nunca chegam ao navegador. Isso não é só cuidado de
+protótipo: é como funcionaria de verdade, com o sistema do órgão assinando, não o computador de quem
+atende.
+
+## Três armadilhas de ambiente (custaram tempo)
+
+1. **O `avm` não consegue baixar o Anchor.** O download do binário pronto estoura o tempo limite
+   interno dele. A saída foi compilar da fonte:
+   `cargo install --git https://github.com/coral-xyz/anchor --tag v1.1.2 anchor-cli --locked`
+
+2. **O `anchor build` pede platform-tools v1.52 e o download também falha.** Se a v1.54 já estiver
+   em `~/.cache/solana`, dá para apontar uma para a outra:
+   `ln -s ~/.cache/solana/v1.54 ~/.cache/solana/v1.52`
+
+3. **Por isso os testes rodam na devnet, não em rede local.** O binário gerado com a v1.54 usa uma
+   versão de SBPF que o `solana-test-validator` 4.1.1 não aceita, mas a devnet aceita. Efeito
+   colateral bom: os testes produzem transações reais, conferíveis no explorer.
+
+O Rust precisa ser 1.85 ou mais novo (algumas dependências usam edition 2024). Se o padrão da
+máquina for mais antigo: `rustup override set 1.97.1` dentro do projeto.
+
+## Organização
+
+```
+programs/custodia/src/lib.rs   programa da Solana
+tests/custodia.ts              8 testes, rodam contra a devnet
+scripts/preparar-devnet.ts     cadastra os órgãos e define o MP
+app/                           aplicação Next.js
+  src/lib/cadeia.ts            acesso ao programa (só servidor)
+  src/lib/fhe/                 criptografia do cruzamento (só servidor)
+  src/app/api/custodia/        rota que assina as transações
+  src/app/api/cruzamento/      rota que cifra, soma e avalia
+  src/app/api/painel/          rota que grava e lê a presença dos órgãos
+  src/app/solucao/             a solução completa explicada
+docs/                          ideia, plano e pesquisa de mercado
+keys/                          chaves dos órgãos — FORA DO GIT
+```
+
+Os dados da demonstração são todos inventados. Nenhuma criança real aparece em lugar nenhum.

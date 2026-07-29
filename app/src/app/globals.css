@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+:root {
+  --fundo: #0b0f14;
+  --fundo-2: #121822;
+  --fundo-3: #1a222f;
+  --borda: #253040;
+  --texto: #e7edf5;
+  --texto-2: #96a3b6;
+  --texto-3: #6b7a8f;
+
+  --c-saude: #38bdf8;
+  --c-educacao: #a78bfa;
+  --c-assistencia: #34d399;
+  --c-creas: #fbbf24;
+  --c-ct: #fb7185;
+  --c-mp: #f472b6;
+
+  --ok: #34d399;
+  --alerta: #fbbf24;
+  --perigo: #f87171;
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-fundo-2: var(--fundo-2);
+  --color-fundo-3: var(--fundo-3);
+  --color-borda: var(--borda);
+  --color-texto: var(--texto);
+  --color-texto-2: var(--texto-2);
+  --color-texto-3: var(--texto-3);
+  --color-ok: var(--ok);
+  --color-alerta: var(--alerta);
+  --color-perigo: var(--perigo);
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .cartao {
+    background: var(--fundo-2);
+    border: 1px solid var(--borda);
+    border-radius: 0.75rem;
+  }
+
+  .rotulo {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--texto-3);
+  }
+
+  .botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--borda);
+    background: var(--fundo-3);
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--texto);
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .botao:hover:not(:disabled) {
+    background: #22303f;
+    border-color: #35455a;
+  }
+  .botao:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .botao-forte {
+    background: var(--texto);
+    color: var(--fundo);
+    border-color: var(--texto);
+    font-weight: 600;
+  }
+  .botao-forte:hover:not(:disabled) {
+    background: #fff;
+    border-color: #fff;
+  }
+
+  .cifra {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: var(--texto-3);
+    word-break: break-all;
+  }
+}
+
+@keyframes pulsar {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.pulsando {
+  animation: pulsar 1.4s ease-in-out infinite;
+}

@@ -1,0 +1,119 @@
+import "server-only";
+
+import * as anchor from "@coral-xyz/anchor";
+import { AnchorProvider, Program } from "@coral-xyz/anchor";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  VersionedTransaction,
+} from "@solana/web3.js";
+import { readFileSync } from "fs";
+import { join } from "path";
+import idl from "@/idl/custodia.json";
+import type { Custodia } from "@/idl/custodia-tipos";
+import type { Papel } from "./tipos";
+
+/**
+ * Acesso ao programa na devnet. Roda só no servidor: as chaves das instituições
+ * ficam aqui e nunca chegam ao navegador. Isso também espelha a arquitetura
+ * real, em que quem assina é o sistema da instituição, não o computador de
+ * quem atende.
+ */
+
+export const RPC = process.env.RPC_URL ?? "https://api.devnet.solana.com";
+const DIR_CHAVES = process.env.KEYS_DIR ?? join(process.cwd(), "..", "keys");
+
+const enc = new TextEncoder();
+const cache = new Map<string, Keypair>();
+
+function chave(nome: string): Keypair {
+  const existente = cache.get(nome);
+  if (existente) return existente;
+  const bruto = JSON.parse(readFileSync(join(DIR_CHAVES, `${nome}.json`), "utf8"));
+  const kp = Keypair.fromSecretKey(Uint8Array.from(bruto));
+  cache.set(nome, kp);
+  return kp;
+}
+
+/** O comitê é quem abre o caso depois que o cruzamento acusa convergência. */
+export const comite = () => chave("comite");
+export const instituicao = (papel: Papel) => chave(papel);
+
+/**
+ * Carteira mínima em cima de uma Keypair. O `Wallet` do Anchor não é exportado
+ * no build ESM da 0.32, e a interface exigida pelo provider é só esta.
+ */
+class CarteiraLocal {
+  constructor(readonly payer: Keypair) {}
+
+  get publicKey(): PublicKey {
+    return this.payer.publicKey;
+  }
+
+  async signTransaction<T extends Transaction | VersionedTransaction>(tx: T): Promise<T> {
+    if (tx instanceof VersionedTransaction) tx.sign([this.payer]);
+    else tx.partialSign(this.payer);
+    return tx;
+  }
+
+  async signAllTransactions<T extends Transaction | VersionedTransaction>(
+    txs: T[],
+  ): Promise<T[]> {
+    return Promise.all(txs.map((t) => this.signTransaction(t)));
+  }
+}
+
+export function programa(assinante: Keypair): Program<Custodia> {
+  const conexao = new Connection(RPC, "confirmed");
+  const provider = new AnchorProvider(conexao, new CarteiraLocal(assinante), {
+    commitment: "confirmed",
+  });
+  return new Program(idl as anchor.Idl, provider) as unknown as Program<Custodia>;
+}
+
+export const conexao = () => new Connection(RPC, "confirmed");
+
+// --- endereços derivados -----------------------------------------------------
+
+export const ID_PROGRAMA = new PublicKey(idl.address);
+
+export const pdaConfig = () =>
+  PublicKey.findProgramAddressSync([enc.encode("config")], ID_PROGRAMA)[0];
+
+export const pdaInstituicao = (autoridade: PublicKey) =>
+  PublicKey.findProgramAddressSync(
+    [enc.encode("inst"), autoridade.toBuffer()],
+    ID_PROGRAMA,
+  )[0];
+
+export const pdaCaso = (alertaId: Buffer) =>
+  PublicKey.findProgramAddressSync([enc.encode("caso"), alertaId], ID_PROGRAMA)[0];
+
+export const pdaAncora = (inst: PublicKey, periodo: number) => {
+  const p = Buffer.alloc(4);
+  p.writeUInt32LE(periodo);
+  return PublicKey.findProgramAddressSync(
+    [enc.encode("ancora"), inst.toBuffer(), p],
+    ID_PROGRAMA,
+  )[0];
+};
+
+// --- tradução entre chave pública e papel -----------------------------------
+
+const PAPEIS_COM_CHAVE: Papel[] = ["ubs", "escola", "cras", "creas", "ct", "mp"];
+
+export function papelDe(chavePublica: PublicKey): Papel | null {
+  const alvo = chavePublica.toBase58();
+  for (const p of PAPEIS_COM_CHAVE) {
+    if (instituicao(p).publicKey.toBase58() === alvo) return p;
+  }
+  return null;
+}
+
+export const explorador = (assinatura: string) =>
+  `https://explorer.solana.com/tx/${assinatura}?cluster=devnet`;
+
+export const exploradorConta = (endereco: string) =>
+  `https://explorer.solana.com/address/${endereco}?cluster=devnet`;

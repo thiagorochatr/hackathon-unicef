@@ -1,0 +1,21 @@
+# Segredos — NUNCA commitar
+keys/
+.env
+.env.local
+.env*.local
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Anchor / Rust
+target/
+.anchor/
+test-ledger/
+
+# Sistema
+.DS_Store
+*.log

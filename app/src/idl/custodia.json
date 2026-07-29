@@ -1,0 +1,1097 @@
+{
+  "address": "FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E",
+  "metadata": {
+    "name": "custodia",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Trilha de custódia e prazos da rede de proteção à infância"
+  },
+  "instructions": [
+    {
+      "name": "abrir_caso",
+      "docs": [
+        "Abre o caso a partir do cruzamento dos sinais.",
+        "",
+        "Quem assina é **quem fez o cruzamento**, não quem vai atender. O órgão",
+        "responsável entra como parâmetro e não precisa concordar: o caso nasce",
+        "com o relógio já correndo contra ele. Se fosse o próprio responsável a",
+        "assinar a abertura, bastaria não assinar para o caso nunca existir — e",
+        "aí não haveria o que cobrar depois."
+      ],
+      "discriminator": [
+        244,
+        153,
+        191,
+        100,
+        120,
+        89,
+        47,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "alerta_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "emissor",
+          "docs": [
+            "Só quem está cadastrado como responsável pelo cruzamento pode abrir caso.",
+            "A derivação do endereço a partir de `autoridade` já garante que uma",
+            "instituição não consegue usar o cadastro de outra."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "autoridade"
+              }
+            ]
+          }
+        },
+        {
+          "name": "autoridade",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "alerta_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "responsavel",
+          "type": "pubkey"
+        },
+        {
+          "name": "agente_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "prazo_seg",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "aceitar",
+      "docs": [
+        "Segunda fase do repasse. Só o destino nomeado pode aceitar, e é o aceite",
+        "assinado que efetivamente move a custódia."
+      ],
+      "discriminator": [
+        89,
+        59,
+        100,
+        214,
+        250,
+        161,
+        248,
+        109
+      ],
+      "accounts": [
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "caso.alerta_id",
+                "account": "Caso"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destino",
+          "docs": [
+            "Precisa assinar: é o aceite que move a custódia."
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "novo_prazo_seg",
+          "type": "i64"
+        },
+        {
+          "name": "agente_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ancorar_periodo",
+      "docs": [
+        "Ancoragem periódica obrigatória. A instituição ancora mesmo sem nenhum",
+        "caso — é a **ausência** da âncora que vira alarme, porque o modo de falha",
+        "dominante na rede não é falsificar registro, é não registrar."
+      ],
+      "discriminator": [
+        166,
+        190,
+        29,
+        37,
+        195,
+        51,
+        21,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "instituicao",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ancora",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  110,
+                  99,
+                  111,
+                  114,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "instituicao"
+              },
+              {
+                "kind": "arg",
+                "path": "periodo"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "instituicao"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "periodo",
+          "type": "u32"
+        },
+        {
+          "name": "commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "definir_mp",
+      "docs": [
+        "Troca o endereço do Ministério Público que recebe os casos vencidos.",
+        "Existe porque na vida real esse endereço muda — nova promotoria, nova",
+        "chave, reorganização de comarca."
+      ],
+      "discriminator": [
+        234,
+        115,
+        154,
+        161,
+        134,
+        211,
+        161,
+        126
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "mp",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "escalar",
+      "docs": [
+        "Recusa tácita e escalonamento ao MP.",
+        "",
+        "**Permissionless por desenho:** não há signatário privilegiado — qualquer",
+        "chave pode acionar depois de vencido o prazo. É isso que impede as partes",
+        "interessadas de suprimirem a escalada simplesmente não a acionando."
+      ],
+      "discriminator": [
+        228,
+        119,
+        56,
+        249,
+        250,
+        93,
+        249,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "caso.alerta_id",
+                "account": "Caso"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pagador",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "novo_prazo_seg",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "inicializar",
+      "discriminator": [
+        38,
+        175,
+        49,
+        47,
+        251,
+        17,
+        202,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "mp",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "registrar_desfecho",
+      "discriminator": [
+        207,
+        185,
+        96,
+        90,
+        64,
+        22,
+        37,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "caso.alerta_id",
+                "account": "Caso"
+              }
+            ]
+          }
+        },
+        {
+          "name": "custodiante",
+          "signer": true,
+          "relations": [
+            "caso"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "desfecho_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "registrar_instituicao",
+      "discriminator": [
+        48,
+        127,
+        200,
+        44,
+        234,
+        53,
+        198,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "instituicao",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority"
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "tipo",
+          "type": {
+            "defined": {
+              "name": "TipoInstituicao"
+            }
+          }
+        },
+        {
+          "name": "municipio_ibge",
+          "type": "u32"
+        },
+        {
+          "name": "nome_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "transferir_para",
+      "docs": [
+        "Primeira fase do repasse. **Não move a custódia**: o caso continua sendo",
+        "de quem transferiu e o prazo segue correndo contra ele. É o que impede a",
+        "responsabilidade de evaporar no encaminhamento."
+      ],
+      "discriminator": [
+        180,
+        36,
+        224,
+        100,
+        88,
+        128,
+        12,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "caso.alerta_id",
+                "account": "Caso"
+              }
+            ]
+          }
+        },
+        {
+          "name": "custodiante",
+          "signer": true,
+          "relations": [
+            "caso"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "destino",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AncoraPeriodo",
+      "discriminator": [
+        191,
+        86,
+        46,
+        34,
+        128,
+        77,
+        127,
+        139
+      ]
+    },
+    {
+      "name": "Caso",
+      "discriminator": [
+        147,
+        77,
+        209,
+        82,
+        232,
+        114,
+        144,
+        222
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "Instituicao",
+      "discriminator": [
+        35,
+        40,
+        212,
+        9,
+        84,
+        176,
+        220,
+        35
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EventoAncoragem",
+      "discriminator": [
+        104,
+        91,
+        43,
+        181,
+        79,
+        83,
+        148,
+        129
+      ]
+    },
+    {
+      "name": "EventoCustodia",
+      "discriminator": [
+        186,
+        134,
+        136,
+        88,
+        193,
+        36,
+        191,
+        61
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NaoEhCustodiante",
+      "msg": "Quem assina não é o custodiante atual do caso"
+    },
+    {
+      "code": 6001,
+      "name": "NaoEhDestinoDoRepasse",
+      "msg": "Quem assina não é o destino nomeado do repasse"
+    },
+    {
+      "code": 6002,
+      "name": "EstadoIncompativel",
+      "msg": "O estado atual do caso não permite esta transição"
+    },
+    {
+      "code": 6003,
+      "name": "PrazoAindaVigente",
+      "msg": "O prazo ainda está vigente; não há recusa tácita"
+    },
+    {
+      "code": 6004,
+      "name": "PrazoInvalido",
+      "msg": "Prazo inválido"
+    },
+    {
+      "code": 6005,
+      "name": "DestinoInvalido",
+      "msg": "Destino inválido"
+    },
+    {
+      "code": 6006,
+      "name": "PeriodoJaAncorado",
+      "msg": "Período já ancorado por esta instituição"
+    },
+    {
+      "code": 6007,
+      "name": "CasoSemDono",
+      "msg": "Um caso não pode ficar sem custodiante"
+    },
+    {
+      "code": 6008,
+      "name": "NaoEhComite",
+      "msg": "Quem assina não está cadastrado para emitir alertas"
+    },
+    {
+      "code": 6009,
+      "name": "TrilhaCheia",
+      "msg": "Trilha de eventos cheia"
+    }
+  ],
+  "types": [
+    {
+      "name": "AncoraPeriodo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instituicao",
+            "type": "pubkey"
+          },
+          {
+            "name": "periodo",
+            "type": "u32"
+          },
+          {
+            "name": "commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Caso",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "alerta_id",
+            "docs": [
+              "Commitment opaco do alerta. Não deriva de identificador da criança."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "custodiante",
+            "docs": [
+              "Invariante: nunca `Pubkey::default()`."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pendente_para",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "agente_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "estado",
+            "type": {
+              "defined": {
+                "name": "Estado"
+              }
+            }
+          },
+          {
+            "name": "prazo",
+            "type": "i64"
+          },
+          {
+            "name": "criado_em",
+            "type": "i64"
+          },
+          {
+            "name": "trilha_hash",
+            "docs": [
+              "Elo corrente da hash chain da trilha, verificável fora da cadeia."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "eventos",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "mp",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Estado",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Aberto"
+          },
+          {
+            "name": "PendenteAceite"
+          },
+          {
+            "name": "EmAtendimento"
+          },
+          {
+            "name": "Escalado"
+          },
+          {
+            "name": "Encerrado"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventoAncoragem",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instituicao",
+            "type": "pubkey"
+          },
+          {
+            "name": "periodo",
+            "type": "u32"
+          },
+          {
+            "name": "commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventoCustodia",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "alerta_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "type": "u8"
+          },
+          {
+            "name": "ator",
+            "type": "pubkey"
+          },
+          {
+            "name": "destino",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "estado",
+            "type": {
+              "defined": {
+                "name": "Estado"
+              }
+            }
+          },
+          {
+            "name": "prazo",
+            "type": "i64"
+          },
+          {
+            "name": "trilha_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Instituicao",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "tipo",
+            "type": {
+              "defined": {
+                "name": "TipoInstituicao"
+              }
+            }
+          },
+          {
+            "name": "municipio_ibge",
+            "type": "u32"
+          },
+          {
+            "name": "nome_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ultimo_periodo_ancorado",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TipoInstituicao",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Ubs"
+          },
+          {
+            "name": "Escola"
+          },
+          {
+            "name": "Cras"
+          },
+          {
+            "name": "Creas"
+          },
+          {
+            "name": "ConselhoTutelar"
+          },
+          {
+            "name": "Mp"
+          },
+          {
+            "name": "Comite"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "custodia-verificavel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trilha de custódia e prazos da rede de proteção à infância — UNICEF Youth Challenge Blockchain 2026",
+  "scripts": {
+    "test": "anchor test",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "bn.js": "^5.2.5",
+    "chai": "^4.5.0",
+    "mocha": "^10.8.2",
+    "ts-mocha": "^10.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

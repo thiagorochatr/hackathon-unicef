@@ -1,0 +1,22 @@
+[package]
+name = "custodia"
+version = "0.1.0"
+description = "Trilha de custódia e prazos da rede de proteção à infância"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "custodia"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = "1.1.2"
+# anchor-lang 1.x migrou para os crates Solana separados e não reexporta hashing.
+solana-sha256-hasher = "3.1.0"
