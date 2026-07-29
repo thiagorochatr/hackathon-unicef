@@ -12,6 +12,7 @@ import {
   programa,
 } from "@/lib/cadeia";
 import type { Estado, Papel } from "@/lib/tipos";
+import { confereAgente, hashDoAgente, identificacaoDoAgente } from "@/lib/agente";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,9 +59,13 @@ async function lerCaso(alertaIdHex: string) {
   const responsavel = papelDe(conta.custodiante);
   const pendentePara = conta.pendentePara ? papelDe(conta.pendentePara) : null;
 
-  const assinaturas = await conexao().getSignaturesForAddress(endereco, {
-    limit: 25,
-  });
+  const conexaoRede = conexao();
+  const [assinaturas, contaBruta] = await Promise.all([
+    conexaoRede.getSignaturesForAddress(endereco, { limit: 25 }),
+    conexaoRede.getAccountInfo(endereco),
+  ]);
+
+  const agenteHex = hex(conta.agenteHash as number[]);
 
   return {
     alertaId: hex(conta.alertaId as number[]),
@@ -69,7 +74,13 @@ async function lerCaso(alertaIdHex: string) {
     responsavel,
     responsavelChave: conta.custodiante.toBase58(),
     pendentePara,
-    agenteHash: hex(conta.agenteHash as number[]),
+    agenteHash: agenteHex,
+    // Refazemos a conta do resumo aqui e dizemos se bate. É o que permite
+    // provar depois quem respondia, sem que o nome esteja na rede.
+    agenteIdentificacao: responsavel ? identificacaoDoAgente(responsavel) : null,
+    agenteConfere: responsavel ? confereAgente(responsavel, agenteHex) : false,
+    bytesNaRede: contaBruta?.data.length ?? 0,
+    brutoHex: contaBruta ? contaBruta.data.toString("hex") : "",
     estado: lerEstado(conta.estado as Record<string, unknown>),
     // Instantes on-chain vêm em segundos; a interface trabalha em milissegundos.
     prazo: conta.prazo.toNumber() * 1000,
@@ -127,7 +138,7 @@ export async function POST(req: Request) {
           .abrirCaso(
             Array.from(id),
             instituicao("creas").publicKey,
-            Array.from(crypto.getRandomValues(new Uint8Array(32))),
+            hashDoAgente("creas"),
             new (await import("@coral-xyz/anchor")).BN(prazoValido(corpo.prazoSeg)),
           )
           .accountsPartial({
@@ -169,7 +180,7 @@ export async function POST(req: Request) {
         const assinatura = await prog.methods
           .aceitar(
             new (await import("@coral-xyz/anchor")).BN(prazoValido(corpo.prazoSeg)),
-            Array.from(crypto.getRandomValues(new Uint8Array(32))),
+            hashDoAgente(quem),
           )
           .accountsPartial({ caso: pdaCaso(id), destino: destino.publicKey })
           .rpc();

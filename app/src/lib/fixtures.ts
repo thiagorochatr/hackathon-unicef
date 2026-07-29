@@ -46,8 +46,15 @@ export const SINAIS_FICTICIOS: Record<
   },
 };
 
+/**
+ * Quem responde pelo caso dentro de cada órgão. É esta identificação que vira
+ * resumo na rede — cargo e matrícula, nunca o nome civil.
+ */
 export const AGENTES: Partial<Record<Papel, string>> = {
-  creas: "Técnica de referência — matrícula 4471",
+  ubs: "Enfermeira responsável — COREN 118.442",
+  escola: "Coordenação pedagógica — matrícula 2210",
+  cras: "Técnica de referência PAIF — matrícula 3305",
+  creas: "Técnica de referência PAEFI — matrícula 4471",
   ct: "Conselheiro tutelar — mandato 2024/2028",
   mp: "Promotoria da Infância e Juventude — 2ª vara",
 };

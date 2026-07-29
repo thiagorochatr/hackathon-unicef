@@ -6,8 +6,8 @@ import { Relogio, useAgora } from "@/components/Relogio";
 import { acoes } from "@/lib/store";
 import { useCaso } from "@/lib/useCaso";
 import { ESTADO_ROTULO, PAPEIS, PAPEL, type Papel } from "@/lib/tipos";
-import { AGENTES } from "@/lib/fixtures";
 import { SeletorPrazo } from "@/components/SeletorPrazo";
+import { ContaNaRede } from "@/components/ContaNaRede";
 
 const LINK_TX = (a: string) => `https://explorer.solana.com/tx/${a}?cluster=devnet`;
 
@@ -131,7 +131,7 @@ export default function TelaCaso() {
               </span>
             </div>
             <p className="mt-1 text-xs text-[var(--texto-2)]">
-              {responsavel ? (AGENTES[responsavel] ?? "") : ""}
+              {caso.agenteIdentificacao ?? ""}
             </p>
             <p className="cifra mt-1">{caso.responsavelChave}</p>
           </div>
@@ -262,6 +262,8 @@ export default function TelaCaso() {
           </div>
         )}
       </section>
+
+      <ContaNaRede caso={caso} />
 
       <section className="space-y-3">
         <h2 className="rotulo">

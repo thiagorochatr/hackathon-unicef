@@ -224,6 +224,110 @@ export default function TelaSolucao() {
         </div>
       </section>
 
+      {/* Por que blockchain */}
+      <section className="space-y-4">
+        <h2 className="rotulo">O que vai para a blockchain, e por quê</h2>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--ok)]">
+              VAI PARA A REDE
+            </p>
+            <ul className="space-y-2 text-sm text-[var(--texto-2)]">
+              <li>
+                <strong className="text-[var(--texto)]">Quem é o responsável</strong> —
+                a chave pública do órgão
+              </li>
+              <li>
+                <strong className="text-[var(--texto)]">Desde quando e até quando</strong>{" "}
+                — abertura e prazo
+              </li>
+              <li>
+                <strong className="text-[var(--texto)]">Para quem foi passado</strong>, e
+                se já aceitou
+              </li>
+              <li>
+                <strong className="text-[var(--texto)]">Um resumo de quem responde</strong>{" "}
+                — cargo e matrícula viram um número; o nome fica fora
+              </li>
+              <li>
+                <strong className="text-[var(--texto)]">O encadeamento dos passos</strong>{" "}
+                — cada um embaralha o anterior junto
+              </li>
+              <li>
+                <strong className="text-[var(--texto)]">Quem deu sinal de vida</strong> no
+                período, e quem não deu
+              </li>
+            </ul>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              São 156 bytes por caso, num espaço de tamanho fixo. Não cabe mais nada nem
+              se alguém quisesse colocar.
+            </p>
+          </div>
+
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--perigo)]">
+              NÃO VAI, EM NENHUMA HIPÓTESE
+            </p>
+            <ul className="space-y-2 text-sm text-[var(--texto-2)]">
+              <li>Nome, CPF ou endereço de qualquer criança</li>
+              <li>O que foi observado — lesão, falta, relato</li>
+              <li>Diagnóstico, laudo ou parecer</li>
+              <li>Quem denunciou</li>
+              <li>O apelido usado no cruzamento</li>
+              <li>Os envelopes cifrados — nem eles</li>
+            </ul>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              Nem cifrado. O registro é permanente, e uma cifra que resiste hoje pode não
+              resistir daqui a trinta anos — quando a criança de hoje for adulta.
+            </p>
+          </div>
+        </div>
+
+        <p className="max-w-3xl text-sm text-[var(--texto-2)]">
+          Reduzindo ao osso: o que vai para a rede é{" "}
+          <strong className="text-[var(--texto)]">
+            quem é o responsável, desde quando, até quando, e quem não apareceu
+          </strong>
+          . Um banco de dados comum guardaria isso sem dificuldade. O problema não é
+          guardar — são estas três coisas:
+        </p>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          {[
+            {
+              n: "1",
+              t: "O registro é contra quem guardaria o banco",
+              d: "A informação “o órgão deixou o prazo vencer” ficaria num sistema da mesma prefeitura que emprega esse órgão. Apagar uma linha não deixa rastro. Aqui não existe quem hospeda — logo, não existe quem apaga.",
+            },
+            {
+              n: "2",
+              t: "Cada passo é assinado, e assinatura não se desdiz",
+              d: "“O CREAS assumiu às 15h59” não é afirmação do nosso sistema: é uma frase que o CREAS assinou com a chave dele. Ele não pode depois dizer que o sistema anotou errado. Num banco comum, quem fez o quê é um campo que o administrador preenche.",
+            },
+            {
+              n: "3",
+              t: "A ida ao Ministério Público é código, não rotina",
+              d: "Num sistema comum, “escalar após o prazo” é uma tarefa agendada que alguém com acesso desliga. Aqui é regra do programa: vencido o prazo, qualquer pessoa aciona, e nenhum dos envolvidos consegue impedir.",
+            },
+          ].map((p) => (
+            <div key={p.n} className="cartao space-y-2 p-5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--borda)] text-sm font-semibold text-[var(--texto-3)]">
+                {p.n}
+              </span>
+              <p className="text-sm font-medium">{p.t}</p>
+              <p className="text-xs text-[var(--texto-2)]">{p.d}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="max-w-3xl rounded-lg border border-[var(--borda)] bg-[var(--fundo-2)] p-4 text-sm text-[var(--texto-2)]">
+          O efeito prático de tudo isso: um promotor, um vereador ou um jornalista
+          confere sozinho — sem pedir acesso a sistema nenhum, e sem precisar confiar em
+          quem seria cobrado.
+        </p>
+      </section>
+
       {/* O que não entra */}
       <section className="space-y-3">
         <h2 className="rotulo">O que nunca vai para a rede</h2>

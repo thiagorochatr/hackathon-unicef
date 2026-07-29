@@ -87,6 +87,14 @@ export interface CasoNaCadeia {
   responsavelChave: string;
   pendentePara: Papel | null;
   agenteHash: string;
+  /** Identificação de quem responde — vive fora da rede. */
+  agenteIdentificacao: string | null;
+  /** Se o resumo gravado na rede corresponde a essa identificação. */
+  agenteConfere: boolean;
+  /** Tamanho da conta na rede, em bytes. */
+  bytesNaRede: number;
+  /** Conteúdo bruto da conta, para mostrar que não há mais nada dentro. */
+  brutoHex: string;
   estado: Estado;
   /** Vencimento do prazo, em ms. */
   prazo: number;
