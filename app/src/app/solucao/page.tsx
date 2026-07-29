@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "A solução completa — custódia verificável",
@@ -278,8 +279,10 @@ export default function TelaSolucao() {
               <li>Os envelopes cifrados — nem eles</li>
             </ul>
             <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
-              Nem cifrado. O registro é permanente, e uma cifra que resiste hoje pode não
-              resistir daqui a trinta anos — quando a criança de hoje for adulta.
+              <strong className="text-[var(--texto)]">Nem cifrado.</strong> O registro é
+              permanente e não dá para apagar. A criança de hoje ainda vai ser adulta
+              por uns 80 anos. Guardar hoje um segredo trancado é apostar que a
+              fechadura resiste esse tempo todo — e quem quiser é só esperar.
             </p>
           </div>
         </div>
@@ -328,125 +331,6 @@ export default function TelaSolucao() {
         </p>
       </section>
 
-      {/* O que não entra */}
-      <section className="space-y-3">
-        <h2 className="rotulo">O que nunca vai para a rede</h2>
-        <div className="cartao space-y-3 p-6">
-          <p className="text-lg font-semibold">
-            Nenhum dado de criança. Nem cifrado.
-          </p>
-          <p className="max-w-3xl text-sm text-[var(--texto-2)]">
-            O registro é permanente e não dá para apagar. A criança de hoje ainda vai
-            ser adulta por uns 80 anos. Guardar hoje um segredo trancado é apostar que a
-            fechadura vai resistir esse tempo todo — e quem quiser é só esperar. Por
-            isso a decisão é não colocar, em nenhuma forma.
-          </p>
-          <div className="grid gap-3 pt-1 sm:grid-cols-2">
-            <div className="rounded-lg border border-[color-mix(in_srgb,var(--ok)_40%,transparent)] bg-[color-mix(in_srgb,var(--ok)_7%,transparent)] p-4">
-              <p className="text-xs font-semibold text-[var(--ok)]">VAI PARA A REDE</p>
-              <ul className="mt-2 space-y-1 text-xs text-[var(--texto-2)]">
-                <li>um número embaralhado que identifica o caso</li>
-                <li>de qual órgão é a responsabilidade agora</li>
-                <li>o prazo e os horários de cada passo</li>
-                <li>um selo que encadeia a trilha</li>
-              </ul>
-            </div>
-            <div className="rounded-lg border border-[color-mix(in_srgb,var(--perigo)_40%,transparent)] bg-[color-mix(in_srgb,var(--perigo)_7%,transparent)] p-4">
-              <p className="text-xs font-semibold text-[var(--perigo)]">
-                NUNCA VAI PARA A REDE
-              </p>
-              <ul className="mt-2 space-y-1 text-xs text-[var(--texto-2)]">
-                <li>nome, CPF ou endereço de qualquer criança</li>
-                <li>o que foi observado, mesmo cifrado</li>
-                <li>diagnóstico, relato ou laudo</li>
-                <li>quem denunciou</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Honestidade */}
-      <section className="space-y-3">
-        <h2 className="rotulo">Onde estamos hoje</h2>
-        <p className="max-w-2xl text-sm text-[var(--texto-2)]">
-          Esta é a visão inteira. O protótipo que você navega aqui já tem parte dela
-          funcionando de verdade, e parte ainda encenada. A separação está abaixo,
-          porque achamos que dizer isso vale mais do que esconder.
-        </p>
-        <div className="space-y-2">
-          {[
-            {
-              t: "Trilha de responsáveis e prazos na Solana",
-              e: "funciona de verdade",
-              d: "Abrir, passar adiante, aceitar, ir ao Ministério Público e encerrar são transações reais, conferíveis no explorador público.",
-              ok: true,
-            },
-            {
-              t: "O caso nasce sem o responsável assinar",
-              e: "funciona de verdade",
-              d: "Verificado na rede: a transação que abre o caso tem um único signatário, e não é o órgão responsável.",
-              ok: true,
-            },
-            {
-              t: "Cruzar sinais sem abrir os envelopes",
-              e: "funciona de verdade",
-              d: "Criptografia homomórfica (Microsoft SEAL, esquema BFV). Cada envelope tem cerca de 118 mil letras; a soma é feita sem nenhuma chave secreta. A tela mostra a mesma soma aberta com a chave certa e com uma chave errada — a errada devolve um número sem sentido.",
-              ok: true,
-            },
-            {
-              t: "Apelido da criança calculado com chave",
-              e: "funciona de verdade",
-              d: "HMAC-SHA256 com uma chave de serviço, e não um resumo simples do CPF — senão qualquer um testaria os cem bilhões de CPFs possíveis até descobrir de quem é cada apelido.",
-              ok: true,
-            },
-            {
-              t: "Chave repartida entre vários órgãos",
-              e: "no plano",
-              d: "Hoje a chave do comitê existe inteira em um lugar só. Na versão completa é preciso um número mínimo de instituições concordando para abrir qualquer coisa.",
-              ok: false,
-            },
-            {
-              t: "Comparação feita dentro do envelope",
-              e: "no plano",
-              d: "Hoje o comitê descobre quantos sinais coincidiram. Na versão completa só sai um \u201csim\u201d ou \u201cnão\u201d.",
-              ok: false,
-            },
-            {
-              t: "Cada órgão marca presença na rede",
-              e: "funciona de verdade",
-              d: "Um selo por período gravado na Solana, mesmo sem nenhum caso. Quem não grava aparece como alerta no painel público — e qualquer pessoa confere sem pedir acesso a sistema nenhum.",
-              ok: true,
-            },
-            {
-              t: "Denúncia protegida por prova que não revela",
-              e: "no plano",
-              d: "É a parte que ataca a causa mais citada da subnotificação: o medo de quem denuncia.",
-              ok: false,
-            },
-          ].map((i) => (
-            <div key={i.t} className="cartao flex flex-wrap gap-3 p-4">
-              <span
-                className="mt-1 h-2 w-2 shrink-0 rounded-full"
-                style={{ background: i.ok ? "var(--ok)" : "var(--alerta)" }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
-                  {i.t}{" "}
-                  <span
-                    className="ml-1 text-xs font-normal"
-                    style={{ color: i.ok ? "var(--ok)" : "var(--alerta)" }}
-                  >
-                    · {i.e}
-                  </span>
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--texto-2)]">{i.d}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="space-y-3">
         <h2 className="rotulo">O que assumimos que não resolvemos</h2>
         <p className="max-w-3xl text-sm text-[var(--texto-2)]">
@@ -457,6 +341,15 @@ export default function TelaSolucao() {
           registrar nada.
         </p>
       </section>
+
+      <p className="border-t border-[var(--borda)] pt-6 text-xs text-[var(--texto-3)]">
+        Esta página descreve a solução como ela deve ser. O protótipo navegável já tem
+        boa parte dela funcionando de verdade e outra parte ainda não —{" "}
+        <Link href="/estado" className="underline">
+          a separação, item a item, está aqui
+        </Link>
+        .
+      </p>
     </div>
   );
 }

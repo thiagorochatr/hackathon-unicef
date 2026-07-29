@@ -4,7 +4,12 @@
   "private": true,
   "description": "Trilha de custódia e prazos da rede de proteção à infância — UNICEF Youth Challenge Blockchain 2026",
   "scripts": {
-    "test": "anchor test",
+    "dev": "pnpm --dir app dev",
+    "build": "pnpm --dir app build",
+    "start": "pnpm --dir app start",
+    "lint": "pnpm --dir app lint",
+    "test": "anchor test --skip-local-validator --skip-deploy --skip-build",
+    "preparar:devnet": "ANCHOR_PROVIDER_URL=https://api.devnet.solana.com ANCHOR_WALLET=$HOME/.config/solana/id.json pnpm exec ts-node scripts/preparar-devnet.ts",
     "deploy:devnet": "anchor deploy --provider.cluster devnet"
   },
   "dependencies": {

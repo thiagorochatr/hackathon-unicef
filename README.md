@@ -76,9 +76,20 @@ pnpm exec ts-node scripts/preparar-devnet.ts
 # 5. testes (rodam contra a devnet; podem ser repetidos)
 anchor test --skip-local-validator --skip-deploy --skip-build
 
-# 6. a aplicação
-cd app && pnpm dev
+# 6. a aplicação — funciona da raiz ou de dentro de app/
+pnpm dev
 ```
+
+Atalhos disponíveis na raiz, todos delegando para `app/` quando é o caso:
+
+| Comando | O que faz |
+|---|---|
+| `pnpm dev` | sobe a aplicação em http://localhost:3000 |
+| `pnpm build` | compila a aplicação |
+| `pnpm lint` | confere o código da aplicação |
+| `pnpm test` | roda os 8 testes do programa contra a devnet |
+| `pnpm preparar:devnet` | cadastra os órgãos e aponta o Ministério Público |
+| `pnpm deploy:devnet` | publica o programa na devnet |
 
 As chaves dos órgãos ficam **no servidor** e nunca chegam ao navegador. Isso não é só cuidado de
 protótipo: é como funcionaria de verdade, com o sistema do órgão assinando, não o computador de quem
