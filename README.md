@@ -84,6 +84,31 @@ As chaves dos órgãos ficam **no servidor** e nunca chegam ao navegador. Isso n
 protótipo: é como funcionaria de verdade, com o sistema do órgão assinando, não o computador de quem
 atende.
 
+## Publicar na Vercel
+
+O projeto Next fica em `app/`, não na raiz do repositório. Ao importar na Vercel, mude o campo
+**Root Directory** para `app` — sem isso o build falha, porque ela procura o `package.json` do Next
+na raiz e encontra o do Anchor.
+
+A pasta `keys/` fica fora do versionamento, então em produção as chaves vêm de variáveis de
+ambiente. Para gerar todas de uma vez, no formato que a Vercel aceita colar:
+
+```bash
+bash scripts/chaves-para-env.sh
+```
+
+Isso imprime `CHAVE_COMITE`, `CHAVE_UBS`, `CHAVE_ESCOLA`, `CHAVE_CRAS`, `CHAVE_CREAS`, `CHAVE_CT`,
+`CHAVE_MP`, mais `CHAVE_APELIDO` e `RPC_URL`. O mesmo arquivo serve para rodar local sem a pasta
+`keys/`: `bash scripts/chaves-para-env.sh > app/.env.local`.
+
+### Por que guardar chave privada em variável de ambiente aqui é aceitável
+
+Normalmente não seria. Neste caso são chaves de **devnet**, com saldo sem valor, criadas só para a
+demonstração e que nunca serão usadas em mainnet — o pior que alguém faz com elas é gastar SOL de
+teste. Num sistema de verdade cada órgão assinaria com a própria chave, dentro da própria
+infraestrutura, e nenhuma delas passaria por aqui. É uma escolha consciente de protótipo, e está
+registrada como tal.
+
 ## Três armadilhas de ambiente (custaram tempo)
 
 1. **O `avm` não consegue baixar o Anchor.** O download do binário pronto estoura o tempo limite

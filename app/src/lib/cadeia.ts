@@ -28,11 +28,54 @@ const DIR_CHAVES = process.env.KEYS_DIR ?? join(process.cwd(), "..", "keys");
 const enc = new TextEncoder();
 const cache = new Map<string, Keypair>();
 
+/**
+ * As chaves vêm de dois lugares, nesta ordem:
+ *
+ * 1. variável de ambiente `CHAVE_<NOME>` — usada quando hospedado, onde não
+ *    existe a pasta `keys/` (ela fica fora do versionamento de propósito);
+ * 2. arquivo `keys/<nome>.json` — usado na máquina de quem desenvolve.
+ *
+ * São chaves de devnet, com saldo sem valor, criadas só para a demonstração e
+ * que nunca serão usadas em mainnet. Guardá-las como variável de ambiente é uma
+ * escolha consciente para este protótipo, não descuido: num sistema de verdade
+ * cada órgão assinaria com a própria chave, dentro da própria infraestrutura.
+ */
+function carregarChave(nome: string): Uint8Array {
+  const daVariavel = process.env[`CHAVE_${nome.toUpperCase()}`];
+  const bruto = daVariavel ?? lerDoArquivo(nome);
+
+  let bytes: number[];
+  try {
+    bytes = JSON.parse(bruto);
+  } catch {
+    throw new Error(
+      `chave "${nome}" mal formada: era esperado um vetor de bytes em JSON, como [12,34,...]`,
+    );
+  }
+  if (!Array.isArray(bytes) || bytes.length !== 64) {
+    throw new Error(
+      `chave "${nome}" tem ${Array.isArray(bytes) ? bytes.length : "?"} bytes; o esperado são 64`,
+    );
+  }
+  return Uint8Array.from(bytes);
+}
+
+function lerDoArquivo(nome: string): string {
+  try {
+    return readFileSync(join(DIR_CHAVES, `${nome}.json`), "utf8");
+  } catch {
+    throw new Error(
+      `chave "${nome}" não encontrada. Defina a variável de ambiente CHAVE_${nome.toUpperCase()} ` +
+        `ou deixe o arquivo em ${DIR_CHAVES}/${nome}.json. ` +
+        `Para gerar as variáveis a partir dos arquivos: bash scripts/chaves-para-env.sh`,
+    );
+  }
+}
+
 function chave(nome: string): Keypair {
   const existente = cache.get(nome);
   if (existente) return existente;
-  const bruto = JSON.parse(readFileSync(join(DIR_CHAVES, `${nome}.json`), "utf8"));
-  const kp = Keypair.fromSecretKey(Uint8Array.from(bruto));
+  const kp = Keypair.fromSecretKey(carregarChave(nome));
   cache.set(nome, kp);
   return kp;
 }
