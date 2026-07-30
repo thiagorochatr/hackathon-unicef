@@ -150,7 +150,6 @@ app/                           aplicação Next.js
   src/app/api/cruzamento/      rota que cifra, soma e avalia
   src/app/api/painel/          rota que grava e lê a presença dos órgãos
   src/app/solucao/             a solução completa explicada
-docs/                          ideia, plano e pesquisa de mercado
 keys/                          chaves dos órgãos — FORA DO GIT
 ```
 
