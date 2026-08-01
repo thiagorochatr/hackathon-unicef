@@ -208,7 +208,8 @@ export default function TelaCruzamento() {
               {sinais.length === 1
                 ? "Um único sinal, e ainda assim o alerta saiu: quem denuncia deliberadamente pesa 2, porque quem vence o medo de denunciar não pode depender da sorte de outro setor ter registrado algo."
                 : "Nenhum setor soube o que o outro registrou. O nó somou às cegas."}{" "}
-              Só a soma foi aberta — nunca as parcelas.
+              Nem a soma foi aberta: o que o comitê abriu já era a comparação com o
+              limite, mascarada.
             </p>
           </div>
         )}
