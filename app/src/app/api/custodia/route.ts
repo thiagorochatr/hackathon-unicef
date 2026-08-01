@@ -14,6 +14,7 @@ import {
 import type { Estado, Papel } from "@/lib/tipos";
 import { confereAgente, hashDoAgente, identificacaoDoAgente } from "@/lib/agente";
 import { registrar } from "@/lib/log";
+import { CUSTO, LimiteExcedido, permitirEscrita } from "@/lib/guarda";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -133,6 +134,7 @@ export async function POST(req: Request) {
       // correndo contra ele, quer ele queira ou não.
       case "abrir": {
         const emissor = comite();
+        await permitirEscrita(req, "abrir caso", emissor, CUSTO.abrir_caso);
         const prog = programa(emissor);
         const id = bytesAleatorios();
         const assinatura = await prog.methods
@@ -171,6 +173,7 @@ export async function POST(req: Request) {
         const atual = await lerCaso(alertaId);
         if (!atual?.responsavel) throw new Error("caso sem responsável conhecido");
         const quemAssina = instituicao(atual.responsavel);
+        await permitirEscrita(req, "passar adiante", quemAssina);
         const prog = programa(quemAssina);
         const assinatura = await prog.methods
           .transferirPara(instituicao(destino).publicKey)
@@ -187,6 +190,7 @@ export async function POST(req: Request) {
         if (!alertaId || !quem) throw new Error("faltam dados");
         const id = Buffer.from(alertaId, "hex");
         const destino = instituicao(quem);
+        await permitirEscrita(req, "aceitar", destino);
         const prog = programa(destino);
         const assinatura = await prog.methods
           .aceitar(
@@ -205,6 +209,7 @@ export async function POST(req: Request) {
         if (!alertaId) throw new Error("faltam dados");
         const id = Buffer.from(alertaId, "hex");
         const pagador = comite();
+        await permitirEscrita(req, "levar ao MP", pagador);
         const prog = programa(pagador);
         const assinatura = await prog.methods
           .escalar(new (await import("@coral-xyz/anchor")).BN(prazoValido(corpo.prazoSeg) * 4))
@@ -224,6 +229,7 @@ export async function POST(req: Request) {
         const atual = await lerCaso(alertaId);
         if (!atual?.responsavel) throw new Error("caso sem responsável conhecido");
         const quemAssina = instituicao(atual.responsavel);
+        await permitirEscrita(req, "encerrar", quemAssina);
         const prog = programa(quemAssina);
         const assinatura = await prog.methods
           .registrarDesfecho(
@@ -241,8 +247,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ erro: "ação desconhecida" }, { status: 400 });
     }
   } catch (e) {
-    const msg = String(e);
-    return NextResponse.json({ erro: msg }, { status: 400 });
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
+    return NextResponse.json({ erro: String(e) }, { status: 400 });
   }
 }
 

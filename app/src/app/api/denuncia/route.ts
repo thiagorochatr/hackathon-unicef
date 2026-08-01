@@ -15,6 +15,7 @@ import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { CRIANCA_FICTICIA } from "@/lib/fixtures";
 import { SETORES, type Setor } from "@/lib/tipos";
 import { registrar } from "@/lib/log";
+import { CUSTO, LimiteExcedido, permitirEscrita } from "@/lib/guarda";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
         // faz o cruzamento. Separar os papéis evita que quem cruza os sinais
         // escolha também quem tem direito de emitir sinal.
         const credenciador = instituicao("creas");
+        await permitirEscrita(req, "credenciar", credenciador);
         const prog = programa(credenciador);
         const assinatura = await prog.methods
           .adicionarCredenciados(
@@ -175,6 +177,7 @@ export async function POST(req: Request) {
         const compromisso = compromissoDoSinal(apelido, peso, sal);
         const anuladorBytes = paraBytes32(anulador);
         const relayer = comite();
+        await permitirEscrita(req, "registrar sinal", relayer, CUSTO.registrar_sinal);
         const prog = programa(relayer);
 
         const instrucao = await prog.methods
@@ -238,6 +241,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ erro: "ação desconhecida" }, { status: 400 });
     }
   } catch (e) {
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
     return NextResponse.json({ erro: String(e) }, { status: 400 });
   }
 }

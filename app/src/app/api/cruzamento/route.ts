@@ -6,7 +6,8 @@ import {
   chavesDeRelinearizacao,
 } from "@/lib/fhe/comite";
 import * as no from "@/lib/fhe/noDeCruzamento";
-import { explorador } from "@/lib/cadeia";
+import { comite, explorador } from "@/lib/cadeia";
+import { LimiteExcedido, limitarChamador, permitirEscrita } from "@/lib/guarda";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { lerAberturas, registrarAbertura } from "@/lib/fhe/auditoria";
 import { CRIANCA_FICTICIA, LIMIAR } from "@/lib/fixtures";
@@ -70,6 +71,8 @@ export async function POST(req: Request) {
        * um "1" cifrado, dizendo que há sinal de risco.
        */
       case "emitir": {
+        // Não escreve na rede, mas cifra — e cifrar custa CPU.
+        limitarChamador(req, "emitir sinal", true);
         const papel = corpo.instituicao as PapelEmissor | undefined;
         if (!papel || !EMISSORES.includes(papel)) {
           return NextResponse.json({ erro: "órgão inválido" }, { status: 400 });
@@ -92,6 +95,7 @@ export async function POST(req: Request) {
        * produzir uma prova de credencial.
        */
       case "emitirCredenciado": {
+        limitarChamador(req, "emitir sinal protegido", true);
         const { setor, peso, sal, assinatura } = corpo;
         if (!setor || !peso || !sal || !assinatura) {
           return NextResponse.json({ erro: "faltam dados do sinal" }, { status: 400 });
@@ -126,6 +130,9 @@ export async function POST(req: Request) {
        * coisa que ele aprendia além do necessário.
        */
       case "cruzar": {
+        // Cruzar soma, compara e depois **escreve** o registro da abertura.
+        // A cerca vem antes de tudo: o trabalho de FHE já é caro sozinho.
+        await permitirEscrita(req, "cruzar", comite());
         const veredito = await no.avaliarLimiar(
           apelido(),
           LIMIAR,
@@ -165,6 +172,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ erro: "ação desconhecida" }, { status: 400 });
     }
   } catch (e) {
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
     return NextResponse.json({ erro: String(e) }, { status: 500 });
   }
 }

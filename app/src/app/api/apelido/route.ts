@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { avaliarApelidoCego } from "@/lib/pseudonimo";
 import { apelidoEmHex, hexParaBytes } from "@/lib/apelido";
+import { LimiteExcedido, limitarChamador } from "@/lib/guarda";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,12 @@ export const dynamic = "force-dynamic";
  * lugar só. Ela não vaza por aqui, mas quem a detém consegue calcular o apelido
  * de um identificador que já conheça. Reparti-la entre instituições é o passo
  * seguinte.
+ *
+ * E uma consequência de ser aberta: esta rota é um **oráculo**. Quem chama
+ * escolhe a entrada, então ela permite calcular o apelido de identificadores
+ * que já se conheça — não offline, como seria com um resumo simples, mas uma
+ * consulta por vez. O limite de ritmo abaixo é o que torna varredura inviável;
+ * num sistema real o acesso seria de instituição credenciada, não de qualquer um.
  */
 export async function POST(req: Request) {
   let corpo: { embaralhado?: string };
@@ -36,10 +43,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    limitarChamador(req, "consultar apelido", true);
     return NextResponse.json({
       avaliado: apelidoEmHex(avaliarApelidoCego(hexParaBytes(hex))),
     });
   } catch (e) {
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
     // Ponto fora da curva, por exemplo. Não dizemos mais do que o necessário.
     return NextResponse.json({ erro: String(e) }, { status: 400 });
   }
