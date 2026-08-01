@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SeletorPrazo } from "@/components/SeletorPrazo";
 import { acoes, useEstado } from "@/lib/store";
 import { LIMIAR } from "@/lib/fixtures";
-import { PAPEL } from "@/lib/tipos";
+import { SETOR } from "@/lib/tipos";
 import { cruzarSinais, useSinais, type ResultadoCruzamento } from "@/lib/useSinais";
 
 export default function TelaCruzamento() {
@@ -59,15 +59,15 @@ export default function TelaCruzamento() {
         ) : (
           <div className="space-y-2">
             {sinais.map((s) => (
-              <div key={s.instituicao} className="cartao p-4">
+              <div key={s.setor} className="cartao p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span
                       className="h-2 w-2 rounded-full"
-                      style={{ background: PAPEL[s.instituicao].cor }}
+                      style={{ background: SETOR[s.setor].cor }}
                     />
                     <span className="text-sm font-medium">
-                      {PAPEL[s.instituicao].sigla}
+                      {SETOR[s.setor].nome}{s.protegido ? " · protegido" : ""}
                     </span>
                     <span className="cifra !text-[var(--texto-3)]">
                       apelido {s.apelido.slice(0, 12)}…
@@ -80,16 +80,16 @@ export default function TelaCruzamento() {
                     <button
                       className="text-xs text-[var(--texto-3)] underline"
                       onClick={() =>
-                        setExpandido(expandido === s.instituicao ? null : s.instituicao)
+                        setExpandido(expandido === s.setor ? null : s.setor)
                       }
                     >
-                      {expandido === s.instituicao ? "recolher" : "ver um pedaço maior"}
+                      {expandido === s.setor ? "recolher" : "ver um pedaço maior"}
                     </button>
                   </div>
                 </div>
                 <p
                   className={`cifra mt-2 overflow-y-auto ${
-                    expandido === s.instituicao ? "max-h-64" : "max-h-10"
+                    expandido === s.setor ? "max-h-64" : "max-h-10"
                   }`}
                 >
                   {s.pedacoDoEnvelope}…
@@ -194,13 +194,17 @@ export default function TelaCruzamento() {
               className="text-sm font-semibold"
               style={{ color: resultado.alerta ? "var(--alerta)" : "var(--texto-2)" }}
             >
-              {resultado.alerta
-                ? "Os sinais coincidiram → alerta enviado ao CREAS"
-                : "Abaixo do limite → nenhum alerta, e nada fica registrado"}
+              {!resultado.alerta
+                ? "Abaixo do limite → nenhum alerta, e nada fica registrado"
+                : sinais.length === 1
+                  ? "Uma denúncia protegida bastou → alerta enviado ao CREAS"
+                  : "Os sinais coincidiram → alerta enviado ao CREAS"}
             </p>
             <p className="text-xs text-[var(--texto-3)]">
-              Nenhum órgão soube o que o outro registrou. O nó somou às cegas. Só a soma
-              foi aberta — nunca as parcelas.
+              {sinais.length === 1
+                ? "Um único sinal, e ainda assim o alerta saiu: quem denuncia deliberadamente pesa 2, porque quem vence o medo de denunciar não pode depender da sorte de outro setor ter registrado algo."
+                : "Nenhum setor soube o que o outro registrou. O nó somou às cegas."}{" "}
+              Só a soma foi aberta — nunca as parcelas.
             </p>
           </div>
         )}

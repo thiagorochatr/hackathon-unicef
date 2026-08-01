@@ -26,14 +26,14 @@ export default function Inicio() {
       titulo: "UBS registra um sinal",
       descricao: "O que sai da unidade é um apelido e um envelope lacrado — nunca o dado.",
       href: "/sinal/ubs",
-      feito: sinais.some((s) => s.instituicao === "ubs"),
+      feito: sinais.some((s) => s.setor === "saude"),
     },
     {
       n: 2,
       titulo: "Escola registra outro sinal",
       descricao: "Independente. A escola não sabe que a UBS existe.",
       href: "/sinal/escola",
-      feito: sinais.some((s) => s.instituicao === "escola"),
+      feito: sinais.some((s) => s.setor === "educacao"),
     },
     {
       n: 3,

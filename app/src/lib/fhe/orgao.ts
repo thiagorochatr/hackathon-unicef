@@ -31,7 +31,14 @@ async function cifrador(): Promise<Cifrador> {
   return global_.__fheOrgao;
 }
 
-export async function cifrarComoOrgao(valor: 0 | 1): Promise<string> {
+/**
+ * Fecha o envelope com o peso do sinal dentro.
+ *
+ * O nó que soma não vê diferença nenhuma entre um apontamento e uma denúncia:
+ * os dois são envelope fechado do mesmo tamanho. É a soma que decide, e ela
+ * acontece sem ninguém abrir nada.
+ */
+export async function cifrarComoOrgao(valor: number): Promise<string> {
   const { codificador } = await nucleo();
   const cifra = await cifrador();
 

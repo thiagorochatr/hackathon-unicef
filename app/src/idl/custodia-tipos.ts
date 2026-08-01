@@ -121,163 +121,6 @@ export type Custodia = {
       ]
     },
     {
-      "name": "abrirCasoPorDenuncia",
-      "docs": [
-        "Abre o caso a partir de uma **denúncia protegida**.",
-        "",
-        "Repare no que não existe aqui: nenhuma assinatura de instituição. Quem",
-        "autoriza não é ninguém — é a prova, conferida pela própria rede. O único",
-        "signatário é quem paga a taxa, e ele não sabe de quem é a prova que está",
-        "repassando.",
-        "",
-        "Esse é o ponto: o profissional que teme retaliação consegue fazer o caso",
-        "existir, com dono e prazo, sem se identificar para ninguém — nem para",
-        "nós."
-      ],
-      "discriminator": [
-        141,
-        201,
-        49,
-        114,
-        91,
-        201,
-        188,
-        123
-      ],
-      "accounts": [
-        {
-          "name": "caso",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  97,
-                  115,
-                  111
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "alertaId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "grupo",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  114,
-                  117,
-                  112,
-                  111
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "grupo.municipioIbge",
-                "account": "grupoCredenciados"
-              }
-            ]
-          }
-        },
-        {
-          "name": "nulificador",
-          "docs": [
-            "Falha na criação se o anulador já tiver sido usado. É a proteção contra",
-            "denúncia repetida, e ela não precisa saber quem é ninguém."
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  110,
-                  117,
-                  108,
-                  105,
-                  102,
-                  105,
-                  99,
-                  97,
-                  100,
-                  111,
-                  114
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "anulador"
-              }
-            ]
-          }
-        },
-        {
-          "name": "pagador",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "alertaId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "prova",
-          "type": {
-            "array": [
-              "u8",
-              256
-            ]
-          }
-        },
-        {
-          "name": "anulador",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "periodo",
-          "type": "u32"
-        },
-        {
-          "name": "agenteHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "prazoSeg",
-          "type": "i64"
-        }
-      ]
-    },
-    {
       "name": "aceitar",
       "docs": [
         "Segunda fase do repasse. Só o destino nomeado pode aceitar, e é o aceite",
@@ -392,26 +235,7 @@ export type Custodia = {
         },
         {
           "name": "grupo",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  114,
-                  117,
-                  112,
-                  111
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "grupo.municipioIbge",
-                "account": "grupoCredenciados"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "credenciador",
@@ -810,25 +634,7 @@ export type Custodia = {
         },
         {
           "name": "grupo",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  114,
-                  117,
-                  112,
-                  111
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "municipioIbge"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "admin",
@@ -847,6 +653,14 @@ export type Custodia = {
         {
           "name": "municipioIbge",
           "type": "u32"
+        },
+        {
+          "name": "setor",
+          "type": {
+            "defined": {
+              "name": "setor"
+            }
+          }
         },
         {
           "name": "responsavelPadrao",
@@ -937,6 +751,124 @@ export type Custodia = {
         },
         {
           "name": "nomeHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "registrarSinalCredenciado",
+      "docs": [
+        "Registra um **sinal credenciado**: um profissional prova que pertence ao",
+        "setor sem dizer qual deles é, e com isso ganha o direito de emitir um",
+        "sinal sobre uma criança.",
+        "",
+        "Repare no que esta instrução **não** faz: ela não abre caso. O caso",
+        "continua nascendo só do cruzamento, quando setores diferentes convergem.",
+        "O que a prova compra é o direito de entrar no cruzamento sem se",
+        "identificar — a proteção é da pessoa, não do dado.",
+        "",
+        "E repare em quem assina: ninguém. Só quem paga a taxa, que não é órgão",
+        "nenhum nem o denunciante. Quem autoriza é a prova, conferida aqui.",
+        "",
+        "O peso separa observação de denúncia:",
+        "- **1, apontamento** — vi algo que sozinho não conclui nada;",
+        "- **2, denúncia** — estou afirmando que há risco, e assumo isso.",
+        "",
+        "Com limiar 2, uma denúncia sozinha basta para o caso nascer, enquanto um",
+        "apontamento precisa de convergência. É a diferença entre observar e",
+        "afirmar, e ela existe porque quem vence o medo de denunciar não pode",
+        "depender da sorte de outro setor ter registrado algo."
+      ],
+      "discriminator": [
+        35,
+        67,
+        4,
+        204,
+        168,
+        146,
+        7,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "grupo"
+        },
+        {
+          "name": "nulificador",
+          "docs": [
+            "Falha na criação se o anulador já tiver sido usado. É a proteção contra",
+            "emissão repetida, e ela não precisa saber quem é ninguém."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  117,
+                  108,
+                  105,
+                  102,
+                  105,
+                  99,
+                  97,
+                  100,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "anulador"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pagador",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "prova",
+          "type": {
+            "array": [
+              "u8",
+              256
+            ]
+          }
+        },
+        {
+          "name": "anulador",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "periodo",
+          "type": "u32"
+        },
+        {
+          "name": "peso",
+          "type": "u8"
+        },
+        {
+          "name": "compromissoSinal",
           "type": {
             "array": [
               "u8",
@@ -1121,6 +1053,19 @@ export type Custodia = {
         191,
         61
       ]
+    },
+    {
+      "name": "eventoSinalCredenciado",
+      "discriminator": [
+        76,
+        220,
+        180,
+        16,
+        147,
+        22,
+        60,
+        91
+      ]
     }
   ],
   "errors": [
@@ -1193,6 +1138,11 @@ export type Custodia = {
       "code": 6013,
       "name": "naoEhCredenciador",
       "msg": "Quem assina não pode credenciar neste município"
+    },
+    {
+      "code": 6014,
+      "name": "pesoInvalido",
+      "msg": "Peso inválido: 1 para apontamento, 2 para denúncia"
     }
   ],
   "types": [
@@ -1299,14 +1249,6 @@ export type Custodia = {
           {
             "name": "eventos",
             "type": "u16"
-          },
-          {
-            "name": "origem",
-            "type": {
-              "defined": {
-                "name": "origem"
-              }
-            }
           },
           {
             "name": "bump",
@@ -1489,6 +1431,62 @@ export type Custodia = {
       }
     },
     {
+      "name": "eventoSinalCredenciado",
+      "docs": [
+        "Cada sinal credenciado deixa registro público: de que setor veio, com que",
+        "peso e quando. Não diz quem emitiu nem sobre qual criança — o compromisso",
+        "leva um sal aleatório justamente para não virar um identificador estável de",
+        "criança na rede.",
+        "",
+        "Serve para duas coisas: o nó de cruzamento só aceita envelope que tenha",
+        "registro aqui, o que o impede de inventar sinais; e qualquer pessoa consegue",
+        "contar quantas denúncias protegidas houve por setor e período."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "municipioIbge",
+            "type": "u32"
+          },
+          {
+            "name": "setor",
+            "type": {
+              "defined": {
+                "name": "setor"
+              }
+            }
+          },
+          {
+            "name": "peso",
+            "type": "u8"
+          },
+          {
+            "name": "compromissoSinal",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "anulador",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "grupoCredenciados",
       "docs": [
         "O grupo de profissionais credenciados de um município.",
@@ -1502,6 +1500,14 @@ export type Custodia = {
           {
             "name": "municipioIbge",
             "type": "u32"
+          },
+          {
+            "name": "setor",
+            "type": {
+              "defined": {
+                "name": "setor"
+              }
+            }
           },
           {
             "name": "raiz",
@@ -1599,19 +1605,29 @@ export type Custodia = {
       }
     },
     {
-      "name": "origem",
+      "name": "setor",
       "docs": [
-        "Como o caso veio ao mundo. Muda quem assinou a abertura — e, na denúncia",
-        "protegida, a resposta é \"ninguém\"."
+        "Os setores da rede de proteção que emitem sinal.",
+        "",
+        "A árvore de credenciados é **uma por setor, por município**. É o ponto de",
+        "equilíbrio: fina o bastante para o cruzamento saber que setores diferentes",
+        "convergiram, e larga o bastante para a pessoa se esconder entre todos os",
+        "profissionais de saúde, de educação ou de assistência do município.",
+        "",
+        "Uma árvore por instituição diria de qual escola veio — e numa escola com",
+        "trinta professores isso não é anonimato nenhum."
       ],
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "cruzamento"
+            "name": "saude"
           },
           {
-            "name": "denunciaProtegida"
+            "name": "educacao"
+          },
+          {
+            "name": "assistencia"
           }
         ]
       }

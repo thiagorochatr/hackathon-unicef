@@ -78,9 +78,15 @@ export default function TelaEstado() {
               ok: true,
             },
             {
-              t: "Denúncia protegida por prova que não revela",
+              t: "Sinal protegido por prova que não revela quem emitiu",
               e: "funciona de verdade",
-              d: "Um profissional credenciado abre um caso provando que está na lista do município, sem revelar qual deles é. A prova nasce no navegador dele, em menos de um segundo, e quem confere é o programa na rede — não um servidor nosso. A transação que abre o caso tem um signatário só, que é quem pagou a taxa: nenhum órgão assinou, e o denunciante também não.",
+              d: "Um profissional prova que está na lista do setor no município, sem revelar qual deles é, e com isso ganha o direito de emitir um sinal. A prova nasce no navegador dele em menos de um segundo, e quem confere é o programa na rede — não um servidor nosso. A transação tem um signatário só, que é quem pagou a taxa: nenhum órgão assinou, e quem emitiu também não.",
+              ok: true,
+            },
+            {
+              t: "Observar e afirmar valem diferente",
+              e: "funciona de verdade",
+              d: "Um apontamento pesa 1 e só vira caso se outro setor também tiver visto algo; uma denúncia pesa 2 e basta sozinha. O peso vai cifrado dentro do envelope: quem soma não distingue um do outro. Existe porque quem vence o medo de denunciar não pode depender da sorte de outro setor ter registrado alguma coisa.",
               ok: true,
             },
             {
@@ -92,7 +98,13 @@ export default function TelaEstado() {
             {
               t: "Grupo grande o bastante para esconder alguém",
               e: "no plano",
-              d: "Na demonstração são poucas pessoas. Anonimato de verdade precisa de milhares: criptografia não conserta grupo pequeno. E quem repassa a denúncia enxerga o endereço de rede de quem enviou — proteger isso exige uma camada a mais.",
+              d: "Na demonstração são poucas pessoas. Anonimato de verdade precisa de milhares: criptografia não conserta grupo pequeno. E quem repassa o sinal enxerga o endereço de rede de quem enviou — proteger isso exige uma camada a mais.",
+              ok: false,
+            },
+            {
+              t: "Apontar a criança sem entregar a chave do apelido",
+              e: "no plano",
+              d: "Hoje quem calcula o apelido é o servidor, então o profissional precisa dizer a ele de qual criança se trata. Na versão completa esse cálculo é feito em conjunto, de um jeito em que nem quem calcula descobre qual criança foi consultada. É também o que permitiria limitar o sinal por criança em vez de por mês.",
               ok: false,
             },
           ].map((i) => (

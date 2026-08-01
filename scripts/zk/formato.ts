@@ -92,13 +92,19 @@ export function embaralhar(valor: string | bigint): bigint {
 }
 
 /**
- * Monta o escopo da denúncia. Precisa dar exatamente o mesmo valor que
- * `zk::valor_do_escopo` no programa — é a definição de quantas denúncias
- * protegidas cada credenciado pode fazer, e se os dois lados divergirem a
- * prova simplesmente não confere.
+ * Monta o escopo do sinal. Precisa dar exatamente o mesmo valor que
+ * `zk::valor_do_escopo` no programa — é a definição de quantos sinais
+ * protegidos cada credenciado pode emitir, e se os dois lados divergirem a
+ * prova simplesmente não confere, sem dizer por quê.
  */
-export function valorDoEscopo(municipioIbge: number, periodo: number): bigint {
-  return (BigInt(municipioIbge) << 32n) | BigInt(periodo);
+export function valorDoEscopo(
+  municipioIbge: number,
+  setorByte: number,
+  periodo: number,
+): bigint {
+  return (
+    (BigInt(municipioIbge) << 40n) | (BigInt(setorByte) << 32n) | BigInt(periodo)
+  );
 }
 
 // ---------------------------------------------------------------------------

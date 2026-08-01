@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Papel } from "./tipos";
+import type { Papel, Setor } from "./tipos";
 
 export interface SinalNoNo {
-  instituicao: Papel;
+  /** O cruzamento conta setores, não instituições. */
+  setor: Setor;
+  /** Se veio de um profissional que provou credencial sem se identificar. */
+  protegido: boolean;
   apelido: string;
   pedacoDoEnvelope: string;
   tamanhoTotal: number;

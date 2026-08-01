@@ -46,13 +46,3 @@ export function provaParaBytes(pontos: readonly string[]): Buffer {
     ...pontos.slice(2, 8).map(paraBytes32),
   ]);
 }
-
-/**
- * Monta o escopo da denúncia. Precisa dar exatamente o mesmo valor que
- * `zk::valor_do_escopo` no programa — é a definição de quantas denúncias
- * protegidas cada credenciado pode fazer, e se os dois lados divergirem a prova
- * simplesmente não confere.
- */
-export function valorDoEscopo(municipioIbge: number, periodo: number): bigint {
-  return (BigInt(municipioIbge) << 32n) | BigInt(periodo);
-}

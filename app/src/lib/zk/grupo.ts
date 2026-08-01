@@ -1,6 +1,7 @@
 import "server-only";
 import { PublicKey } from "@solana/web3.js";
 import { comite, conexao, ID_PROGRAMA, programa } from "../cadeia";
+import type { Setor } from "../tipos";
 
 /**
  * A lista de profissionais credenciados de um município.
@@ -20,17 +21,30 @@ export const MUNICIPIO_IBGE = 3552205;
 /** Profundidade fixa, casada com a chave de verificação embutida no programa. */
 export const PROFUNDIDADE = 16;
 
-export const pdaGrupo = (municipio = MUNICIPIO_IBGE) => {
+/** O mesmo byte que o programa usa para compor o escopo. */
+export const BYTE_DO_SETOR: Record<Setor, number> = {
+  saude: 1,
+  educacao: 2,
+  assistencia: 3,
+};
+
+/** Uma árvore por setor, por município. */
+export const pdaGrupo = (setor: Setor, municipio = MUNICIPIO_IBGE) => {
   const m = Buffer.alloc(4);
   m.writeUInt32LE(municipio);
   return PublicKey.findProgramAddressSync(
-    [new TextEncoder().encode("grupo"), m],
+    [
+      new TextEncoder().encode("grupo"),
+      m,
+      Buffer.from([BYTE_DO_SETOR[setor]]),
+    ],
     ID_PROGRAMA,
   )[0];
 };
 
 export interface EstadoGrupo {
   endereco: string;
+  setor: Setor;
   municipioIbge: number;
   /** Raiz publicada na rede, em hexadecimal. */
   raiz: string;
@@ -139,8 +153,8 @@ async function folhasDaRede(endereco: PublicKey): Promise<string[]> {
   return emOrdem.flatMap((s) => lidas.get(s) ?? []);
 }
 
-export async function lerGrupo(): Promise<EstadoGrupo | null> {
-  const endereco = pdaGrupo();
+export async function lerGrupo(setor: Setor): Promise<EstadoGrupo | null> {
+  const endereco = pdaGrupo(setor);
   const prog = programa(comite());
   const conta = await prog.account.grupoCredenciados.fetchNullable(endereco);
   if (!conta) return null;
@@ -150,6 +164,7 @@ export async function lerGrupo(): Promise<EstadoGrupo | null> {
 
   return {
     endereco: endereco.toBase58(),
+    setor,
     municipioIbge: conta.municipioIbge,
     raiz: Buffer.from(conta.raiz as number[]).toString("hex"),
     // Contamos as folhas, e não o contador guardado na conta. O contador só

@@ -33,6 +33,17 @@ const INSTITUICOES = [
 
 const MUNICIPIO_IBGE = 3552205; // Sorocaba/SP — cenário fictício da demonstração
 
+/**
+ * Uma árvore de credenciados por setor. É o recorte que mantém o cruzamento
+ * com sentido — ele conta setores que convergiram — sem encolher demais a
+ * multidão onde o profissional se esconde.
+ */
+const SETORES = [
+  { nome: "saude", tipo: { saude: {} }, byte: 1 },
+  { nome: "educacao", tipo: { educacao: {} }, byte: 2 },
+  { nome: "assistencia", tipo: { assistencia: {} }, byte: 3 },
+] as const;
+
 async function main() {
   process.env.ANCHOR_PROVIDER_URL ??= "https://api.devnet.solana.com";
   process.env.ANCHOR_WALLET ??= join(
@@ -93,6 +104,28 @@ async function main() {
       })
       .rpc();
     console.log(`${nome.padEnd(9)}: ${kp.publicKey.toBase58()} → ${sig}`);
+  }
+
+
+  // 3. Grupos de credenciados, um por setor
+  const creas = carregar("creas");
+  for (const setor of SETORES) {
+    const m = Buffer.alloc(4);
+    m.writeUInt32LE(MUNICIPIO_IBGE);
+    const pda = PublicKey.findProgramAddressSync(
+      [enc.encode("grupo"), m, Buffer.from([setor.byte])],
+      program.programId,
+    )[0];
+
+    if (await program.account.grupoCredenciados.fetchNullable(pda)) {
+      console.log(`grupo ${setor.nome.padEnd(12)}: já cadastrado`);
+      continue;
+    }
+    const sig = await program.methods
+      .registrarGrupo(MUNICIPIO_IBGE, setor.tipo as never, creas.publicKey)
+      .accountsPartial({ config, grupo: pda, admin: provider.wallet.publicKey })
+      .rpc();
+    console.log(`grupo ${setor.nome.padEnd(12)}:`, pda.toBase58(), "→", sig);
   }
 
   console.log("\npronto.");

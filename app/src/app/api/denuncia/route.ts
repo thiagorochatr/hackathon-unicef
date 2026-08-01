@@ -5,39 +5,34 @@ import {
   conexao,
   explorador,
   instituicao,
-  pdaCaso,
   pdaConfig,
   programa,
 } from "@/lib/cadeia";
-import { hashDoAgente } from "@/lib/agente";
-import {
-  MUNICIPIO_IBGE,
-  lerGrupo,
-  pdaGrupo,
-  raizDe,
-} from "@/lib/zk/grupo";
+import { MUNICIPIO_IBGE, lerGrupo, pdaGrupo, raizDe } from "@/lib/zk/grupo";
+import { compromissoDoSinal } from "@/lib/zk/registro";
 import { paraBytes32, provaParaBytes } from "@/lib/zk/formato";
+import { apelidoDaCrianca } from "@/lib/pseudonimo";
+import { CRIANCA_FICTICIA } from "@/lib/fixtures";
+import { SETORES, type Setor } from "@/lib/tipos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * O relayer da denúncia protegida.
+ * O relayer do sinal credenciado.
  *
- * Ele existe por uma razão estrutural, não por conveniência: a rede exige que
+ * Ele existe por razão estrutural, não por conveniência: a rede exige que
  * alguém assine e pague a taxa. Se fosse o próprio profissional a pagar, a
- * carteira dele apareceria ligada à denúncia e o anonimato acabaria antes de
+ * carteira dele apareceria ligada ao sinal e o anonimato acabaria antes de
  * começar. O relayer é quem quebra esse elo.
  *
- * O que ele vê: a prova, o caso e o anulador. O que ele não consegue saber:
- * de quem é a prova. Nem hoje, nem com computador quântico — a prova é
- * estatisticamente independente de quem a produziu.
+ * O que ele vê: a prova, o setor, o peso e o compromisso. O que ele não
+ * consegue saber: de quem é a prova. Nem hoje, nem com computador quântico — a
+ * prova é estatisticamente independente de quem a produziu.
  *
- * O que ele **vê e não deveria**: o endereço de IP de quem chamou. Proteger
- * isso exige rede de anonimato, e está declarado como limitação em /estado.
+ * O que ele **vê e não deveria**: o endereço de rede de quem chamou. Proteger
+ * isso exige uma camada a mais, e está declarado como limitação em /estado.
  */
-
-const PRAZO_PADRAO = 120;
 
 function pdaNulificador(anulador: Buffer) {
   return PublicKey.findProgramAddressSync(
@@ -46,19 +41,37 @@ function pdaNulificador(anulador: Buffer) {
   )[0];
 }
 
-/** O período que define o escopo: um credenciado denuncia uma vez por mês. */
+/**
+ * O período que fecha o escopo do anulador: um sinal protegido por profissional,
+ * por setor, por mês.
+ *
+ * O limite é por período e não por criança de propósito. Ligá-lo à criança
+ * exigiria pôr na rede um valor estável por criança, e é exatamente isso que o
+ * projeto não faz. A troca está declarada.
+ */
 function periodoAtual(): number {
   const agora = new Date();
   return agora.getFullYear() * 100 + (agora.getMonth() + 1);
 }
 
-export async function GET() {
+const setorValido = (s: unknown): s is Setor =>
+  typeof s === "string" && (SETORES as string[]).includes(s);
+
+export async function GET(req: Request) {
+  const setor = new URL(req.url).searchParams.get("setor") ?? "educacao";
+  if (!setorValido(setor)) {
+    return NextResponse.json({ erro: "setor inválido" }, { status: 400 });
+  }
   try {
-    const grupo = await lerGrupo();
     return NextResponse.json({
-      grupo,
+      grupo: await lerGrupo(setor),
       municipioIbge: MUNICIPIO_IBGE,
       periodo: periodoAtual(),
+      // O apelido da criança da demonstração. Vai para o navegador porque quem
+      // emite o sinal precisa dizer sobre quem ele é — e quem emite já conhece
+      // a criança. O que o navegador não recebe, e nunca recebe, é a chave que
+      // gera o apelido.
+      apelido: apelidoDaCrianca(CRIANCA_FICTICIA.identificador),
     });
   } catch (e) {
     return NextResponse.json({ erro: String(e) }, { status: 500 });
@@ -68,11 +81,12 @@ export async function GET() {
 export async function POST(req: Request) {
   let corpo: {
     acao: string;
+    setor?: string;
     compromisso?: string;
-    alertaId?: string;
     anulador?: string;
     pontos?: string[];
-    prazoSeg?: number;
+    peso?: number;
+    sal?: string;
   };
   try {
     corpo = await req.json();
@@ -80,29 +94,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "corpo inválido" }, { status: 400 });
   }
 
+  if (!setorValido(corpo.setor)) {
+    return NextResponse.json({ erro: "setor inválido" }, { status: 400 });
+  }
+  const setor = corpo.setor;
+
   try {
     switch (corpo.acao) {
       /**
-       * Credencia um profissional.
+       * Credencia um profissional no setor.
        *
        * Nesta demonstração basta pedir. Num sistema de verdade quem credencia é
-       * o setor de pessoal da instituição, e isso está declarado — a
-       * criptografia não tem como saber se alguém é mesmo professor.
+       * o setor de pessoal da instituição — criptografia nenhuma tem como saber
+       * se alguém é mesmo professor.
        */
       case "credenciar": {
         if (!corpo.compromisso) throw new Error("falta o compromisso");
-        const atual = await lerGrupo();
-        if (!atual) throw new Error("o grupo do município não está cadastrado");
+        const atual = await lerGrupo(setor);
+        if (!atual) throw new Error("o grupo deste setor não está cadastrado");
         if (atual.folhas.includes(corpo.compromisso)) {
           return NextResponse.json({ jaCredenciado: true, grupo: atual });
         }
 
-        const folhas = [...atual.folhas, corpo.compromisso];
-        const novaRaiz = await raizDe(folhas);
+        const novaRaiz = await raizDe([...atual.folhas, corpo.compromisso]);
 
         // Quem credencia é o órgão responsável do município, e não o comitê que
-        // faz o cruzamento. Separar os dois papéis evita que quem cruza os
-        // sinais escolha também quem tem direito de denunciar.
+        // faz o cruzamento. Separar os papéis evita que quem cruza os sinais
+        // escolha também quem tem direito de emitir sinal.
         const credenciador = instituicao("creas");
         const prog = programa(credenciador);
         const assinatura = await prog.methods
@@ -112,7 +130,7 @@ export async function POST(req: Request) {
           )
           .accountsPartial({
             config: pdaConfig(),
-            grupo: pdaGrupo(),
+            grupo: pdaGrupo(setor),
             credenciador: credenciador.publicKey,
           })
           .rpc();
@@ -120,40 +138,43 @@ export async function POST(req: Request) {
         return NextResponse.json({
           assinatura,
           link: explorador(assinatura),
-          grupo: await lerGrupo(),
+          grupo: await lerGrupo(setor),
         });
       }
 
       /**
-       * Repassa a denúncia para a rede.
+       * Registra o sinal na rede.
        *
-       * Repare que a transação é montada à mão, com o relayer como **único**
-       * signatário. O atalho do Anchor faria a carteira do provider assinar
-       * junto, e aí haveria dois — o que enfraqueceria justamente o que esta
-       * tela quer mostrar.
+       * A transação é montada à mão, com o relayer como **único** signatário. O
+       * atalho do Anchor faria a carteira do provider assinar junto, e aí
+       * haveria dois — o que enfraqueceria justamente o que esta tela mostra.
+       *
+       * Não abre caso: só dá ao profissional o direito de entrar no cruzamento
+       * sem se identificar. O caso continua nascendo da convergência.
        */
-      case "denunciar": {
-        const { alertaId, anulador, pontos } = corpo;
-        if (!alertaId || !anulador || !pontos) throw new Error("faltam dados da prova");
+      case "registrar": {
+        const { anulador, pontos, peso, sal } = corpo;
+        if (!anulador || !pontos || !peso || !sal) {
+          throw new Error("faltam dados do sinal");
+        }
+        if (peso !== 1 && peso !== 2) throw new Error("peso inválido");
 
-        const id = Buffer.from(alertaId, "hex");
-        if (id.length !== 32) throw new Error("alertaId precisa ter 32 bytes");
+        const apelido = apelidoDaCrianca(CRIANCA_FICTICIA.identificador);
+        const compromisso = compromissoDoSinal(apelido, peso, sal);
         const anuladorBytes = paraBytes32(anulador);
         const relayer = comite();
         const prog = programa(relayer);
 
         const instrucao = await prog.methods
-          .abrirCasoPorDenuncia(
-            Array.from(id),
+          .registrarSinalCredenciado(
             Array.from(provaParaBytes(pontos)),
             Array.from(anuladorBytes),
             periodoAtual(),
-            hashDoAgente("creas"),
-            new (await import("@coral-xyz/anchor")).BN(corpo.prazoSeg ?? PRAZO_PADRAO),
+            peso,
+            Array.from(Buffer.from(compromisso, "hex")),
           )
           .accountsPartial({
-            caso: pdaCaso(id),
-            grupo: pdaGrupo(),
+            grupo: pdaGrupo(setor),
             nulificador: pdaNulificador(anuladorBytes),
             pagador: relayer.publicKey,
           })
@@ -171,11 +192,10 @@ export async function POST(req: Request) {
         await rede.confirmTransaction(assinatura, "confirmed");
 
         return NextResponse.json({
-          alertaId,
           assinatura,
           link: explorador(assinatura),
           relayer: relayer.publicKey.toBase58(),
-          responsavel: instituicao("creas").publicKey.toBase58(),
+          compromisso,
         });
       }
 

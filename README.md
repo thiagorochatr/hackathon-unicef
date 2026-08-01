@@ -4,9 +4,11 @@ Protótipo para o **UNICEF Youth Challenge Blockchain 2026**, pilar Proteção �
 
 Duas ideias em uma:
 
-1. **Cruzar sinais entre órgãos sem que nenhum veja o dado do outro.** UBS, escola e CRAS mandam
-   um sinal cifrado sobre a mesma criança. Se dois ou mais coincidem, sai um alerta. Nenhum órgão
-   enxerga o registro do outro.
+1. **Cruzar sinais entre setores sem que nenhum veja o dado do outro.** Saúde, educação e
+   assistência mandam um sinal cifrado sobre a mesma criança. Se a soma atinge 2, sai um alerta.
+   Nenhum setor enxerga o registro do outro. O sinal pode vir do sistema do órgão ou de um
+   profissional que **provou ser credenciado sem se identificar** — e nesse caso ele escolhe entre
+   apontamento, que pesa 1, e denúncia, que pesa 2 e basta sozinha.
 2. **Fazer o repasse do caso deixar rastro.** Cada passo — quem recebeu, quem assumiu, qual o prazo,
    para quem passou — vira uma transação assinada na Solana. Se o prazo vence e ninguém aceita, o
    caso vai sozinho para o Ministério Público.
@@ -26,7 +28,8 @@ horários.
 | Chave repartida entre órgãos | ainda não — a chave do comitê existe inteira em um lugar só |
 | Comparação dentro do envelope | ainda não — hoje o comitê descobre quantos sinais coincidiram |
 | Marcar presença de cada órgão | **real** — um selo por período gravado na Solana; a falta dele vira alerta |
-| Denúncia protegida (ZK) | **real** — prova Semaphore gerada no navegador em ~0,6 s e conferida on-chain por 117 mil unidades de computação |
+| Sinal protegido (ZK) | **real** — prova Semaphore gerada no navegador em ~0,6 s e conferida on-chain por ~110 mil unidades de computação |
+| Apontamento (peso 1) × denúncia (peso 2) | **real** — o peso vai cifrado no envelope; uma denúncia sozinha atinge o limiar |
 | Lista de credenciados conferível | **real** — cada credenciamento vai a evento; qualquer pessoa refaz a árvore lendo a cadeia |
 | Grupo grande o bastante para esconder alguém | ainda não — na demonstração são poucas pessoas |
 

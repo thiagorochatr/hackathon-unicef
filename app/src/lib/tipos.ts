@@ -3,7 +3,61 @@ export type Papel = "ubs" | "escola" | "cras" | "creas" | "ct" | "mp";
 export const PAPEIS: Papel[] = ["ubs", "escola", "cras", "creas", "ct", "mp"];
 
 /** Papéis que emitem sinal de risco (proteção básica e universal). */
-export const EMISSORES: Papel[] = ["ubs", "escola", "cras"];
+export type PapelEmissor = "ubs" | "escola" | "cras";
+
+export const EMISSORES: PapelEmissor[] = ["ubs", "escola", "cras"];
+
+/**
+ * Os setores da rede. O cruzamento conta **setores** que convergiram, e não
+ * instituições: dois sinais da mesma escola não são convergência nenhuma.
+ *
+ * É também o recorte da árvore de credenciados — largo o bastante para alguém
+ * se esconder dentro, fino o bastante para o cruzamento continuar querendo
+ * dizer alguma coisa.
+ */
+export type Setor = "saude" | "educacao" | "assistencia";
+
+export const SETORES: Setor[] = ["saude", "educacao", "assistencia"];
+
+export const SETOR_DO_PAPEL: Record<PapelEmissor, Setor> = {
+  ubs: "saude",
+  escola: "educacao",
+  cras: "assistencia",
+};
+
+export const SETOR: Record<Setor, { nome: string; cor: string; quem: string }> = {
+  saude: {
+    nome: "Saúde",
+    cor: "var(--c-saude)",
+    quem: "profissionais de UBS, ambulatório e hospital do município",
+  },
+  educacao: {
+    nome: "Educação",
+    cor: "var(--c-educacao)",
+    quem: "professores, coordenação e direção das escolas do município",
+  },
+  assistencia: {
+    nome: "Assistência social",
+    cor: "var(--c-assistencia)",
+    quem: "equipes de CRAS e serviços de convivência do município",
+  },
+};
+
+/** O peso do sinal: observar não é a mesma coisa que afirmar. */
+export type Peso = 1 | 2;
+
+export const PESO: Record<Peso, { nome: string; descricao: string }> = {
+  1: {
+    nome: "Apontamento",
+    descricao:
+      "Vi algo que sozinho não conclui nada. Só vira caso se outro setor também tiver visto.",
+  },
+  2: {
+    nome: "Denúncia",
+    descricao:
+      "Estou afirmando que há risco, e assumo isso. Sozinha já abre o caso, com prazo correndo.",
+  },
+};
 
 export interface DadosPapel {
   sigla: string;

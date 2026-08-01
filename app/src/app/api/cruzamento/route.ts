@@ -3,7 +3,12 @@ import { avaliarSoma, abrirComChaveErrada, chavePublica } from "@/lib/fhe/comite
 import * as no from "@/lib/fhe/noDeCruzamento";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { CRIANCA_FICTICIA, LIMIAR } from "@/lib/fixtures";
-import { EMISSORES, type Papel } from "@/lib/tipos";
+import {
+  EMISSORES,
+  SETOR_DO_PAPEL,
+  type PapelEmissor,
+  type Setor,
+} from "@/lib/tipos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +23,8 @@ function apelido() {
 function resumo() {
   const a = apelido();
   return no.listar(a).map((e) => ({
-    instituicao: e.papel,
+    setor: e.setor,
+    protegido: e.protegido,
     apelido: a,
     pedacoDoEnvelope: e.cifraB64.slice(0, PEDACO),
     tamanhoTotal: e.cifraB64.length,
@@ -31,7 +37,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  let corpo: { acao: string; instituicao?: Papel };
+  let corpo: {
+    acao: string;
+    instituicao?: string;
+    setor?: string;
+    peso?: number;
+    sal?: string;
+    assinatura?: string;
+  };
   try {
     corpo = await req.json();
   } catch {
@@ -46,15 +59,45 @@ export async function POST(req: Request) {
        * um "1" cifrado, dizendo que há sinal de risco.
        */
       case "emitir": {
-        const papel = corpo.instituicao;
+        const papel = corpo.instituicao as PapelEmissor | undefined;
         if (!papel || !EMISSORES.includes(papel)) {
           return NextResponse.json({ erro: "órgão inválido" }, { status: 400 });
         }
         // Buscar a chave pública prova que o órgão não precisa da chave secreta.
         await chavePublica();
         const { cifrarComoOrgao } = await import("@/lib/fhe/orgao");
+        // Sinal institucional pesa 1: é observação, não afirmação.
         const cifra = await cifrarComoOrgao(1);
-        no.receber(apelido(), papel, cifra);
+        no.receber(apelido(), SETOR_DO_PAPEL[papel], cifra);
+        return NextResponse.json({ sinais: resumo() });
+      }
+
+      /**
+       * Sinal de um profissional que provou credencial sem se identificar.
+       *
+       * O nó **exige** que exista o registro na rede: sem ele o envelope é
+       * recusado. É isso que impede o próprio nó de inventar sinais — ele tem a
+       * chave pública e conseguiria fechar envelopes sozinho, mas não consegue
+       * produzir uma prova de credencial.
+       */
+      case "emitirCredenciado": {
+        const { setor, peso, sal, assinatura } = corpo;
+        if (!setor || !peso || !sal || !assinatura) {
+          return NextResponse.json({ erro: "faltam dados do sinal" }, { status: 400 });
+        }
+        const { conferirRegistro } = await import("@/lib/zk/registro");
+        await conferirRegistro({
+          assinatura,
+          setor: setor as Setor,
+          peso: Number(peso),
+          apelido: apelido(),
+          sal,
+        });
+
+        await chavePublica();
+        const { cifrarComoOrgao } = await import("@/lib/fhe/orgao");
+        const cifra = await cifrarComoOrgao(Number(peso));
+        no.receber(apelido(), setor as Setor, cifra, true);
         return NextResponse.json({ sinais: resumo() });
       }
 

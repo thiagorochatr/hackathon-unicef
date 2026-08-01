@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { acoes } from "@/lib/store";
+import { PESO, SETOR, SETORES, type Peso, type Setor } from "@/lib/tipos";
 import {
   esquecerIdentidade,
   obterIdentidade,
   type IdentidadeLocal,
 } from "@/lib/zk/identidade";
-import { gerarProva, novoAlertaId, type ProvaGerada } from "@/lib/zk/prova";
+import { gerarProva, type ProvaGerada } from "@/lib/zk/prova";
 
 interface Grupo {
   endereco: string;
+  setor: Setor;
   municipioIbge: number;
   raiz: string;
   membros: number;
@@ -20,22 +21,31 @@ interface Grupo {
   responsavel: string;
 }
 
-interface Envio {
-  alertaId: string;
+interface Registro {
   assinatura: string;
   link: string;
   relayer: string;
 }
 
+const BYTE_DO_SETOR: Record<Setor, number> = {
+  saude: 1,
+  educacao: 2,
+  assistencia: 3,
+};
+
 const curto = (s: string, n = 10) =>
   s.length > n * 2 ? `${s.slice(0, n)}…${s.slice(-n)}` : s;
 
 export default function TelaDenuncia() {
+  const [setor, setSetor] = useState<Setor>("educacao");
+  const [peso, setPeso] = useState<Peso>(2);
   const [identidade, setIdentidade] = useState<IdentidadeLocal | null>(null);
   const [grupo, setGrupo] = useState<Grupo | null>(null);
+  const [apelido, setApelido] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState<number | null>(null);
-  const [prova, setProva] = useState<(ProvaGerada & { alertaId: string }) | null>(null);
-  const [envio, setEnvio] = useState<Envio | null>(null);
+  const [prova, setProva] = useState<ProvaGerada | null>(null);
+  const [registro, setRegistro] = useState<Registro | null>(null);
+  const [emitido, setEmitido] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -47,12 +57,13 @@ export default function TelaDenuncia() {
       try {
         const [id, r] = await Promise.all([
           obterIdentidade(),
-          fetch("/api/denuncia").then((x) => x.json()),
+          fetch(`/api/denuncia?setor=${setor}`).then((x) => x.json()),
         ]);
         if (!vivo) return;
         if (r.erro) throw new Error(r.erro);
         setIdentidade(id);
         setGrupo(r.grupo);
+        setApelido(r.apelido);
         setPeriodo(r.periodo);
       } catch (e) {
         if (vivo) setErro(String(e instanceof Error ? e.message : e));
@@ -61,13 +72,17 @@ export default function TelaDenuncia() {
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [setor]);
 
   const credenciado =
     identidade && grupo ? grupo.folhas.includes(identidade.compromisso) : false;
+  const raizConfere = grupo?.raizRefeita != null && grupo.raizRefeita === grupo.raiz;
 
-  const raizConfere =
-    grupo?.raizRefeita != null && grupo.raizRefeita === grupo.raiz;
+  function limpar() {
+    setProva(null);
+    setRegistro(null);
+    setEmitido(false);
+  }
 
   async function credenciar() {
     if (!identidade) return;
@@ -79,6 +94,7 @@ export default function TelaDenuncia() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           acao: "credenciar",
+          setor,
           compromisso: identidade.compromisso,
         }),
       });
@@ -93,22 +109,22 @@ export default function TelaDenuncia() {
   }
 
   async function provar() {
-    if (!identidade || !grupo || periodo == null) return;
+    if (!identidade || !grupo || !apelido || periodo == null) return;
     setOcupado("provar");
     setErro(null);
-    setEnvio(null);
+    limpar();
     try {
-      // O identificador do caso é sorteado antes de provar, porque ele entra
-      // dentro da prova — é o que impede reaproveitá-la para abrir outro caso.
-      const alertaId = novoAlertaId();
-      const p = await gerarProva(
-        identidade.segredo,
-        grupo.folhas,
-        alertaId,
-        grupo.municipioIbge,
-        periodo,
+      setProva(
+        await gerarProva(
+          identidade.segredo,
+          grupo.folhas,
+          apelido,
+          peso,
+          grupo.municipioIbge,
+          BYTE_DO_SETOR[setor],
+          periodo,
+        ),
       );
-      setProva({ ...p, alertaId });
     } catch (e) {
       setErro(String(e instanceof Error ? e.message : e));
     } finally {
@@ -116,26 +132,42 @@ export default function TelaDenuncia() {
     }
   }
 
-  async function enviar() {
-    const p = prova;
-    if (!p) return;
-    setOcupado("enviar");
+  /** Registra na rede e, com o registro na mão, entrega o envelope ao nó. */
+  async function emitir() {
+    if (!prova) return;
+    setOcupado("emitir");
     setErro(null);
     try {
       const r = await fetch("/api/denuncia", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          acao: "denunciar",
-          alertaId: p.alertaId,
-          anulador: p.anulador,
-          pontos: p.pontos,
+          acao: "registrar",
+          setor,
+          peso,
+          sal: prova.sal,
+          anulador: prova.anulador,
+          pontos: prova.pontos,
         }),
       });
       const d = await r.json();
       if (d.erro) throw new Error(d.erro);
-      setEnvio(d);
-      acoes.definirAlerta(d.alertaId);
+      setRegistro(d);
+
+      const c = await fetch("/api/cruzamento", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          acao: "emitirCredenciado",
+          setor,
+          peso,
+          sal: prova.sal,
+          assinatura: d.assinatura,
+        }),
+      });
+      const dc = await c.json();
+      if (dc.erro) throw new Error(dc.erro);
+      setEmitido(true);
     } catch (e) {
       setErro(String(e instanceof Error ? e.message : e));
     } finally {
@@ -146,18 +178,19 @@ export default function TelaDenuncia() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="rotulo">Denúncia protegida</p>
+        <p className="rotulo">Sinal protegido</p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Provar que pode denunciar, sem dizer quem é.
+          Emitir um sinal sem dizer quem é.
         </h1>
         <p className="max-w-2xl text-sm text-[var(--texto-2)]">
-          A causa mais citada para o professor não denunciar não é falta de lei nem
+          A causa mais citada para o professor não avisar não é falta de lei nem
           desatenção: é medo de retaliação. Aqui ele prova que{" "}
           <strong className="text-[var(--texto)]">
-            é um profissional credenciado deste município
+            é um profissional credenciado do setor
           </strong>{" "}
-          — o que faz a denúncia valer — sem que ninguém descubra{" "}
-          <strong className="text-[var(--texto)]">qual</strong> deles é.
+          — o que faz o sinal valer — sem que ninguém descubra{" "}
+          <strong className="text-[var(--texto)]">qual</strong> deles é. O sinal
+          entra no mesmo cruzamento dos outros; o caso continua nascendo de lá.
         </p>
       </header>
 
@@ -167,9 +200,44 @@ export default function TelaDenuncia() {
         </div>
       )}
 
-      {/* 1 — a identidade */}
+      {/* 1 — setor */}
       <section className="space-y-3">
-        <h2 className="rotulo">1 · Sua identidade — só existe neste aparelho</h2>
+        <h2 className="rotulo">1 · De que setor você é</h2>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {SETORES.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setSetor(s);
+                limpar();
+              }}
+              className="cartao p-4 text-left"
+              style={{
+                borderColor: s === setor ? SETOR[s].cor : "var(--borda)",
+              }}
+            >
+              <p className="text-sm font-medium" style={{ color: SETOR[s].cor }}>
+                {SETOR[s].nome}
+              </p>
+              <p className="mt-1 text-xs text-[var(--texto-2)]">{SETOR[s].quem}</p>
+            </button>
+          ))}
+        </div>
+        <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+          A lista é por setor, e não por escola ou por posto. É o ponto de
+          equilíbrio: fina o bastante para o cruzamento saber que setores
+          diferentes convergiram, e larga o bastante para você se esconder entre
+          todos os profissionais do setor no município.{" "}
+          <strong className="text-[var(--texto)]">
+            Uma lista por escola diria de qual escola veio
+          </strong>{" "}
+          — e numa escola com trinta professores isso não seria anonimato nenhum.
+        </p>
+      </section>
+
+      {/* 2 — identidade */}
+      <section className="space-y-3">
+        <h2 className="rotulo">2 · Sua identidade — só existe neste aparelho</h2>
         <div className="cartao space-y-3 p-5">
           {identidade ? (
             <>
@@ -198,8 +266,7 @@ export default function TelaDenuncia() {
               <button
                 onClick={() => {
                   esquecerIdentidade();
-                  setProva(null);
-                  setEnvio(null);
+                  limpar();
                   obterIdentidade().then(setIdentidade);
                 }}
                 className="text-xs text-[var(--texto-3)] underline"
@@ -213,10 +280,11 @@ export default function TelaDenuncia() {
         </div>
       </section>
 
-      {/* 2 — o grupo */}
+      {/* 3 — lista */}
       <section className="space-y-3">
         <h2 className="rotulo">
-          2 · A lista de credenciados — {grupo?.membros ?? "…"} no município
+          3 · Credenciados em {SETOR[setor].nome.toLowerCase()} —{" "}
+          {grupo?.membros ?? "…"} no município
         </h2>
         <div className="cartao space-y-3 p-5">
           {grupo ? (
@@ -242,10 +310,10 @@ export default function TelaDenuncia() {
                 </div>
               </div>
               <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
-                As duas raízes acima foram calculadas de formas diferentes: uma está
-                gravada na rede, a outra foi refeita agora lendo as folhas dos eventos
-                de credenciamento. Baterem significa que ninguém foi enfiado na lista
-                às escondidas — e{" "}
+                As duas raízes foram calculadas de formas diferentes: uma está gravada
+                na rede, a outra foi refeita agora lendo as folhas dos eventos de
+                credenciamento. Baterem significa que ninguém foi enfiado na lista às
+                escondidas — e{" "}
                 <strong className="text-[var(--texto)]">
                   qualquer pessoa faz essa conferência
                 </strong>
@@ -254,15 +322,11 @@ export default function TelaDenuncia() {
 
               {credenciado ? (
                 <p className="text-sm" style={{ color: "var(--ok)" }}>
-                  Você está na lista.
+                  Você está na lista deste setor.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <button
-                    onClick={credenciar}
-                    disabled={ocupado != null}
-                    className="botao"
-                  >
+                  <button onClick={credenciar} disabled={ocupado != null} className="botao">
                     {ocupado === "credenciar" ? "credenciando…" : "Entrar na lista"}
                   </button>
                   <p className="text-xs text-[var(--texto-3)]">
@@ -279,15 +343,52 @@ export default function TelaDenuncia() {
         </div>
       </section>
 
-      {/* 3 — a prova */}
+      {/* 4 — peso */}
       <section className="space-y-3">
-        <h2 className="rotulo">3 · A prova — gerada aqui, no seu navegador</h2>
+        <h2 className="rotulo">4 · O que você está dizendo</h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {([1, 2] as Peso[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => {
+                setPeso(p);
+                limpar();
+              }}
+              className="cartao p-4 text-left"
+              style={{
+                borderColor:
+                  p === peso
+                    ? p === 2
+                      ? "var(--perigo)"
+                      : "var(--alerta)"
+                    : "var(--borda)",
+              }}
+            >
+              <p className="text-sm font-medium">
+                {PESO[p].nome}{" "}
+                <span className="text-xs font-normal text-[var(--texto-3)]">
+                  · peso {p}
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-[var(--texto-2)]">{PESO[p].descricao}</p>
+            </button>
+          ))}
+        </div>
+        <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+          O peso vai <strong className="text-[var(--texto)]">dentro do envelope</strong>
+          , cifrado. Quem soma não vê diferença nenhuma entre os dois: são envelopes
+          fechados do mesmo tamanho. É a soma que decide, e ela acontece sem ninguém
+          abrir nada. Como o limiar é 2, uma denúncia sozinha basta — porque quem vence
+          o medo de denunciar não pode depender da sorte de outro setor ter registrado
+          algo.
+        </p>
+      </section>
+
+      {/* 5 — prova */}
+      <section className="space-y-3">
+        <h2 className="rotulo">5 · A prova — gerada aqui, no seu navegador</h2>
         <div className="cartao space-y-3 p-5">
-          <button
-            onClick={provar}
-            disabled={!credenciado || ocupado != null}
-            className="botao"
-          >
+          <button onClick={provar} disabled={!credenciado || ocupado != null} className="botao">
             {ocupado === "provar" ? "gerando a prova…" : "Gerar a prova"}
           </button>
           {!credenciado && (
@@ -313,8 +414,8 @@ export default function TelaDenuncia() {
               </div>
               <div>
                 <p className="text-xs text-[var(--texto-3)]">
-                  Anulador — impede a mesma pessoa de denunciar duas vezes no mês, sem
-                  revelar quem ela é
+                  Anulador — impede você de emitir dois sinais protegidos neste setor no
+                  mesmo mês, sem revelar quem você é
                 </p>
                 <p className="mt-1 break-all font-mono text-xs text-[var(--texto-2)]">
                   {curto(prova.anulador, 16)}
@@ -325,48 +426,42 @@ export default function TelaDenuncia() {
         </div>
       </section>
 
-      {/* 4 — o envio */}
+      {/* 6 — emissão */}
       <section className="space-y-3">
-        <h2 className="rotulo">4 · O envio — e quem assinou</h2>
+        <h2 className="rotulo">6 · O sinal — e quem assinou</h2>
         <div className="cartao space-y-3 p-5">
-          <button
-            onClick={enviar}
-            disabled={!prova || ocupado != null}
-            className="botao"
-          >
-            {ocupado === "enviar" ? "enviando…" : "Enviar a denúncia"}
+          <button onClick={emitir} disabled={!prova || ocupado != null} className="botao">
+            {ocupado === "emitir" ? "emitindo…" : "Emitir o sinal"}
           </button>
           <p className="text-xs text-[var(--texto-3)]">
             A rede exige que alguém pague a taxa. Se fosse você, sua carteira ficaria
-            ligada à denúncia para sempre. Por isso quem paga é outra pessoa — e ela
-            não faz ideia de quem gerou a prova que está repassando.
+            ligada ao sinal para sempre. Por isso quem paga é outra pessoa — e ela não
+            faz ideia de quem gerou a prova que está repassando.
           </p>
 
-          {envio && (
+          {registro && (
             <div className="space-y-2 border-t border-[var(--borda)] pt-3">
-              <p className="text-sm" style={{ color: "var(--ok)" }}>
-                O caso existe, com responsável e prazo correndo.
-              </p>
               <p className="text-xs text-[var(--texto-2)]">
                 Único signatário da transação:{" "}
-                <span className="font-mono">{curto(envio.relayer, 8)}</span> — quem
+                <span className="font-mono">{curto(registro.relayer, 8)}</span> — quem
                 pagou a taxa.{" "}
                 <strong className="text-[var(--texto)]">
                   Nenhum órgão assinou, e você também não.
                 </strong>{" "}
-                Quem autorizou a abertura foi a prova.
+                Quem autorizou foi a prova.
               </p>
+              {emitido && (
+                <p className="text-sm" style={{ color: "var(--ok)" }}>
+                  Envelope aceito pelo nó de cruzamento — o sinal está valendo, com peso{" "}
+                  {peso}.
+                </p>
+              )}
               <div className="flex flex-wrap gap-3 text-sm">
-                <a
-                  href={envio.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  ver a transação no explorador
+                <a href={registro.link} target="_blank" rel="noreferrer" className="underline">
+                  ver o registro no explorador
                 </a>
-                <Link href="/caso" className="underline">
-                  acompanhar o caso
+                <Link href="/cruzamento" className="underline">
+                  ir ao cruzamento
                 </Link>
               </div>
             </div>
@@ -379,9 +474,11 @@ export default function TelaDenuncia() {
         <Link href="/estado" className="underline">
           estado do protótipo
         </Link>
-        : o grupo aqui é pequeno, e anonimato real precisa de milhares de pessoas —
-        criptografia não conserta conjunto pequeno. E quem repassa a denúncia enxerga
-        o endereço de rede de quem chamou.
+        : a lista aqui é pequena, e anonimato real precisa de milhares de pessoas —
+        criptografia não conserta conjunto pequeno. Quem repassa o sinal enxerga o
+        endereço de rede de quem chamou. E o limite de um sinal por mês existe porque
+        ligá-lo à criança poria na rede um valor estável dela, que é justamente o que
+        este projeto não faz.
       </p>
     </div>
   );

@@ -92,12 +92,14 @@ pub fn embaralhar(valor: &[u8; 32]) -> [u8; 32] {
 
 /// Monta o escopo da denúncia a partir do município e do período.
 ///
-/// O escopo decide o que o anulador impede: cada credenciado faz **uma**
-/// denúncia protegida por município por período. Compor os dois números num só,
+/// O escopo decide o que o anulador impede: cada credenciado emite **um** sinal
+/// protegido por setor, por município, por período. Compor os números num só,
 /// em vez de formatar um texto, evita a única classe de bug que importaria
 /// aqui — os dois lados chegarem a bytes diferentes para o mesmo escopo.
-pub fn valor_do_escopo(municipio_ibge: u32, periodo: u32) -> [u8; 32] {
-    let combinado = ((municipio_ibge as u64) << 32) | (periodo as u64);
+pub fn valor_do_escopo(municipio_ibge: u32, setor: u8, periodo: u32) -> [u8; 32] {
+    let combinado = ((municipio_ibge as u64) << 40)
+        | ((setor as u64) << 32)
+        | (periodo as u64);
     let mut saida = [0u8; 32];
     saida[24..32].copy_from_slice(&combinado.to_be_bytes());
     saida

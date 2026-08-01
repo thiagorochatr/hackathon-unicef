@@ -80,61 +80,83 @@ pub mod custodia {
             responsavel,
             agente_hash,
             prazo_seg,
-            Origem::Cruzamento,
             ctx.bumps.caso,
             &emissor,
         )
     }
 
-    /// Abre o caso a partir de uma **denúncia protegida**.
+    /// Registra um **sinal credenciado**: um profissional prova que pertence ao
+    /// setor sem dizer qual deles é, e com isso ganha o direito de emitir um
+    /// sinal sobre uma criança.
     ///
-    /// Repare no que não existe aqui: nenhuma assinatura de instituição. Quem
-    /// autoriza não é ninguém — é a prova, conferida pela própria rede. O único
-    /// signatário é quem paga a taxa, e ele não sabe de quem é a prova que está
-    /// repassando.
+    /// Repare no que esta instrução **não** faz: ela não abre caso. O caso
+    /// continua nascendo só do cruzamento, quando setores diferentes convergem.
+    /// O que a prova compra é o direito de entrar no cruzamento sem se
+    /// identificar — a proteção é da pessoa, não do dado.
     ///
-    /// Esse é o ponto: o profissional que teme retaliação consegue fazer o caso
-    /// existir, com dono e prazo, sem se identificar para ninguém — nem para
-    /// nós.
-    pub fn abrir_caso_por_denuncia(
-        ctx: Context<AbrirCasoPorDenuncia>,
-        alerta_id: [u8; 32],
+    /// E repare em quem assina: ninguém. Só quem paga a taxa, que não é órgão
+    /// nenhum nem o denunciante. Quem autoriza é a prova, conferida aqui.
+    ///
+    /// O peso separa observação de denúncia:
+    /// - **1, apontamento** — vi algo que sozinho não conclui nada;
+    /// - **2, denúncia** — estou afirmando que há risco, e assumo isso.
+    ///
+    /// Com limiar 2, uma denúncia sozinha basta para o caso nascer, enquanto um
+    /// apontamento precisa de convergência. É a diferença entre observar e
+    /// afirmar, e ela existe porque quem vence o medo de denunciar não pode
+    /// depender da sorte de outro setor ter registrado algo.
+    pub fn registrar_sinal_credenciado(
+        ctx: Context<RegistrarSinalCredenciado>,
         prova: [u8; zk::TAMANHO_PROVA],
         anulador: [u8; 32],
         periodo: u32,
-        agente_hash: [u8; 32],
-        prazo_seg: i64,
+        peso: u8,
+        compromisso_sinal: [u8; 32],
     ) -> Result<()> {
+        require!(peso >= 1 && peso <= 2, ErroCustodia::PesoInvalido);
         let grupo = &ctx.accounts.grupo;
 
-        // A mensagem e o escopo não são parâmetros: o programa os recalcula.
-        // Se fossem parâmetros, quem repassa a transação poderia pegar uma prova
-        // legítima e usá-la para abrir um caso diferente, ou em outro período.
+        // O escopo é recalculado aqui, não aceito como parâmetro: é ele que dá
+        // sentido ao anulador. Se viesse de fora, bastaria inventar um escopo
+        // novo a cada vez para o limite de uma emissão por período não valer.
+        //
+        // Ele **não** inclui a criança, e isso é deliberado: incluir poria na
+        // rede um valor estável por criança, permitindo correlacionar todos os
+        // sinais sobre a mesma. O custo é o limite ser por período, e não por
+        // criança. É a troca que o princípio de não pôr nada de criança na rede
+        // nos impõe, e ela vai declarada.
         let entradas = zk::EntradasPublicas {
             raiz: grupo.raiz,
             anulador,
-            mensagem: zk::embaralhar(&alerta_id),
-            escopo: zk::embaralhar(&zk::valor_do_escopo(grupo.municipio_ibge, periodo)),
+            // O compromisso amarra a prova a este sinal específico — a esta
+            // criança e a este peso. Quem repassa a transação não consegue
+            // trocar nem um nem outro.
+            mensagem: zk::embaralhar(&compromisso_sinal),
+            escopo: zk::embaralhar(&zk::valor_do_escopo(
+                grupo.municipio_ibge,
+                grupo.setor.como_byte(),
+                periodo,
+            )),
         };
         zk::conferir_prova(&prova, &entradas)?;
 
-        // O anulador vira uma conta. Se já existir, a criação falha sozinha e a
-        // denúncia repetida não passa — sem lista para percorrer nem varredura.
+        // O anulador vira conta. Se já existir, a criação falha sozinha e a
+        // segunda emissão do mesmo profissional no período não passa — sem lista
+        // para percorrer e sem descobrir quem ele é.
         let agora = Clock::get()?.unix_timestamp;
         let marca = &mut ctx.accounts.nulificador;
         marca.usado_em = agora;
         marca.bump = ctx.bumps.nulificador;
 
-        let ator = grupo.key();
-        ctx.accounts.caso.nascer(
-            alerta_id,
-            grupo.responsavel_padrao,
-            agente_hash,
-            prazo_seg,
-            Origem::DenunciaProtegida,
-            ctx.bumps.caso,
-            &ator,
-        )
+        emit!(EventoSinalCredenciado {
+            municipio_ibge: grupo.municipio_ibge,
+            setor: grupo.setor,
+            peso,
+            compromisso_sinal,
+            anulador,
+            ts: agora,
+        });
+        Ok(())
     }
 
     /// Cria o grupo de profissionais credenciados de um município, vazio.
@@ -146,6 +168,7 @@ pub mod custodia {
     pub fn registrar_grupo(
         ctx: Context<RegistrarGrupo>,
         municipio_ibge: u32,
+        setor: Setor,
         responsavel_padrao: Pubkey,
     ) -> Result<()> {
         require!(
@@ -154,6 +177,7 @@ pub mod custodia {
         );
         let grupo = &mut ctx.accounts.grupo;
         grupo.municipio_ibge = municipio_ibge;
+        grupo.setor = setor;
         grupo.raiz = [0u8; 32];
         grupo.responsavel_padrao = responsavel_padrao;
         grupo.membros = 0;
@@ -404,7 +428,6 @@ pub const DISC_TRANSFERENCIA: u8 = 2;
 pub const DISC_ACEITE: u8 = 3;
 pub const DISC_ESCALONAMENTO: u8 = 4;
 pub const DISC_DESFECHO: u8 = 5;
-pub const DISC_DENUNCIA: u8 = 6;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
 pub enum Estado {
@@ -415,14 +438,30 @@ pub enum Estado {
     Encerrado,
 }
 
-/// Como o caso veio ao mundo. Muda quem assinou a abertura — e, na denúncia
-/// protegida, a resposta é "ninguém".
+/// Os setores da rede de proteção que emitem sinal.
+///
+/// A árvore de credenciados é **uma por setor, por município**. É o ponto de
+/// equilíbrio: fina o bastante para o cruzamento saber que setores diferentes
+/// convergiram, e larga o bastante para a pessoa se esconder entre todos os
+/// profissionais de saúde, de educação ou de assistência do município.
+///
+/// Uma árvore por instituição diria de qual escola veio — e numa escola com
+/// trinta professores isso não é anonimato nenhum.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
-pub enum Origem {
-    /// Sinais de órgãos diferentes convergiram no cruzamento cifrado.
-    Cruzamento,
-    /// Um profissional credenciado provou que pode denunciar, sem se identificar.
-    DenunciaProtegida,
+pub enum Setor {
+    Saude,
+    Educacao,
+    Assistencia,
+}
+
+impl Setor {
+    pub fn como_byte(&self) -> u8 {
+        match self {
+            Setor::Saude => 1,
+            Setor::Educacao => 2,
+            Setor::Assistencia => 3,
+        }
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
@@ -471,21 +510,16 @@ pub struct Caso {
     /// Elo corrente da hash chain da trilha, verificável fora da cadeia.
     pub trilha_hash: [u8; 32],
     pub eventos: u16,
-    pub origem: Origem,
     pub bump: u8,
 }
 
 impl Caso {
-    /// A parte comum às duas formas de abrir um caso. O que muda entre elas é
-    /// só quem assinou — e a `origem` registra essa diferença de forma
-    /// permanente, para que depois ninguém precise adivinhar.
     fn nascer(
         &mut self,
         alerta_id: [u8; 32],
         custodiante: Pubkey,
         agente_hash: [u8; 32],
         prazo_seg: i64,
-        origem: Origem,
         bump: u8,
         ator: &Pubkey,
     ) -> Result<()> {
@@ -504,19 +538,14 @@ impl Caso {
         self.criado_em = agora;
         self.trilha_hash = [0u8; 32];
         self.eventos = 0;
-        self.origem = origem;
         self.bump = bump;
 
-        let disc = match origem {
-            Origem::Cruzamento => DISC_ABERTURA,
-            Origem::DenunciaProtegida => DISC_DENUNCIA,
-        };
-        self.avancar_trilha(disc, ator, agora)?;
+        self.avancar_trilha(DISC_ABERTURA, ator, agora)?;
         self.checar_invariante()?;
 
         emit!(EventoCustodia {
             alerta_id,
-            tipo: disc,
+            tipo: DISC_ABERTURA,
             ator: *ator,
             destino: Some(custodiante),
             estado: self.estado,
@@ -563,6 +592,7 @@ impl Caso {
 #[derive(InitSpace)]
 pub struct GrupoCredenciados {
     pub municipio_ibge: u32,
+    pub setor: Setor,
     pub raiz: [u8; 32],
     /// Para quem vai o caso aberto por denúncia — CREAS ou Conselho Tutelar.
     pub responsavel_padrao: Pubkey,
@@ -664,29 +694,21 @@ pub struct AbrirCaso<'info> {
     pub system_program: Program<'info, System>,
 }
 
-/// Abertura por denúncia protegida.
+/// Registro de sinal credenciado.
 ///
 /// **Não existe `Signer` de instituição aqui.** Só o pagador da taxa, que pode
-/// ser qualquer chave e que não tem relação nenhuma com quem denunciou. Quem
-/// autoriza é a prova, e quem confere é o programa.
+/// ser qualquer chave e que não tem relação nenhuma com quem emitiu o sinal.
+/// Quem autoriza é a prova, e quem confere é o programa.
 #[derive(Accounts)]
-#[instruction(alerta_id: [u8; 32], prova: [u8; 256], anulador: [u8; 32])]
-pub struct AbrirCasoPorDenuncia<'info> {
+#[instruction(prova: [u8; 256], anulador: [u8; 32])]
+pub struct RegistrarSinalCredenciado<'info> {
     #[account(
-        init,
-        payer = pagador,
-        space = 8 + Caso::INIT_SPACE,
-        seeds = [b"caso", alerta_id.as_ref()],
-        bump
-    )]
-    pub caso: Account<'info, Caso>,
-    #[account(
-        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes()],
+        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes(), &[grupo.setor.como_byte()]],
         bump = grupo.bump
     )]
     pub grupo: Account<'info, GrupoCredenciados>,
     /// Falha na criação se o anulador já tiver sido usado. É a proteção contra
-    /// denúncia repetida, e ela não precisa saber quem é ninguém.
+    /// emissão repetida, e ela não precisa saber quem é ninguém.
     #[account(
         init,
         payer = pagador,
@@ -701,7 +723,7 @@ pub struct AbrirCasoPorDenuncia<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(municipio_ibge: u32)]
+#[instruction(municipio_ibge: u32, setor: Setor)]
 pub struct RegistrarGrupo<'info> {
     #[account(seeds = [b"config"], bump = config.bump, has_one = admin)]
     pub config: Account<'info, Config>,
@@ -709,7 +731,7 @@ pub struct RegistrarGrupo<'info> {
         init,
         payer = admin,
         space = 8 + GrupoCredenciados::INIT_SPACE,
-        seeds = [b"grupo".as_ref(), &municipio_ibge.to_le_bytes()],
+        seeds = [b"grupo".as_ref(), &municipio_ibge.to_le_bytes(), &[setor.como_byte()]],
         bump
     )]
     pub grupo: Account<'info, GrupoCredenciados>,
@@ -724,7 +746,7 @@ pub struct AtualizarGrupo<'info> {
     pub config: Account<'info, Config>,
     #[account(
         mut,
-        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes()],
+        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes(), &[grupo.setor.como_byte()]],
         bump = grupo.bump
     )]
     pub grupo: Account<'info, GrupoCredenciados>,
@@ -825,6 +847,24 @@ pub struct EventoCredenciados {
     pub ts: i64,
 }
 
+/// Cada sinal credenciado deixa registro público: de que setor veio, com que
+/// peso e quando. Não diz quem emitiu nem sobre qual criança — o compromisso
+/// leva um sal aleatório justamente para não virar um identificador estável de
+/// criança na rede.
+///
+/// Serve para duas coisas: o nó de cruzamento só aceita envelope que tenha
+/// registro aqui, o que o impede de inventar sinais; e qualquer pessoa consegue
+/// contar quantas denúncias protegidas houve por setor e período.
+#[event]
+pub struct EventoSinalCredenciado {
+    pub municipio_ibge: u32,
+    pub setor: Setor,
+    pub peso: u8,
+    pub compromisso_sinal: [u8; 32],
+    pub anulador: [u8; 32],
+    pub ts: i64,
+}
+
 #[event]
 pub struct EventoAncoragem {
     pub instituicao: Pubkey,
@@ -863,4 +903,6 @@ pub enum ErroCustodia {
     CredenciamentoLongoDemais,
     #[msg("Quem assina não pode credenciar neste município")]
     NaoEhCredenciador,
+    #[msg("Peso inválido: 1 para apontamento, 2 para denúncia")]
+    PesoInvalido,
 }

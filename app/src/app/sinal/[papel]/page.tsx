@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { CRIANCA_FICTICIA, SINAIS_FICTICIOS } from "@/lib/fixtures";
-import { EMISSORES, PAPEL, type Papel } from "@/lib/tipos";
+import { EMISSORES, PAPEL, SETOR_DO_PAPEL, type PapelEmissor } from "@/lib/tipos";
 import { emitirSinal, useSinais } from "@/lib/useSinais";
 
 export default function TelaSinal() {
@@ -14,7 +14,7 @@ export default function TelaSinal() {
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState(false);
 
-  const papel = params.papel as Papel;
+  const papel = params.papel as PapelEmissor;
   if (!EMISSORES.includes(papel)) {
     return (
       <p className="text-sm text-[var(--texto-2)]">
@@ -26,7 +26,7 @@ export default function TelaSinal() {
   const emissor = papel as "ubs" | "escola" | "cras";
   const dados = PAPEL[emissor];
   const conteudo = SINAIS_FICTICIOS[emissor];
-  const enviado = sinais.find((s) => s.instituicao === emissor);
+  const enviado = sinais.find((s) => s.setor === SETOR_DO_PAPEL[emissor]);
 
   async function registrar() {
     setOcupado(true);
@@ -51,7 +51,7 @@ export default function TelaSinal() {
             className={`botao !px-3 !py-1.5 text-xs ${p === emissor ? "botao-forte" : ""}`}
           >
             {PAPEL[p].sigla}
-            {sinais.some((s) => s.instituicao === p) && " ✓"}
+            {sinais.some((s) => s.setor === SETOR_DO_PAPEL[p]) && " ✓"}
           </Link>
         ))}
       </div>

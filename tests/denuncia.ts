@@ -1,28 +1,27 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import BN from "bn.js";
+import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { ComputeBudgetProgram, Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { assert } from "chai";
 import type { Custodia } from "../target/types/custodia";
-import {
-  entradasPublicas,
-  provaParaBytes,
-  paraBytes32,
-  valorDoEscopo,
-} from "../scripts/zk/formato";
+import { provaParaBytes, paraBytes32, valorDoEscopo } from "../scripts/zk/formato";
 
 const enc = new TextEncoder();
 
 /** Profundidade da árvore, fixa: é a que a chave de verificação embutida cobre. */
 const PROFUNDIDADE = 16;
-const MUNICIPIO = 3552205; // Sorocaba/SP — mesmo cenário fictício do resto da demonstração
+const MUNICIPIO = 3552205; // Sorocaba/SP — cenário fictício da demonstração
+
+/** Educação. O mesmo byte que o programa usa para compor o escopo. */
+const SETOR = { educacao: {} } as never;
+const SETOR_BYTE = 2;
 
 /**
  * O período muda a cada execução. O anulador é derivado do escopo, e o escopo
- * inclui o período — sem isto, a segunda execução do teste esbarraria nos
- * anuladores gastos pela primeira, que ficam na devnet para sempre.
+ * inclui o período — sem isto, a segunda execução esbarraria nos anuladores
+ * gastos pela primeira, que ficam na devnet para sempre.
  */
 const PERIODO = Math.floor(Date.now() / 1000) % 1_000_000;
 
@@ -31,16 +30,19 @@ const ARTEFATOS = {
   zkey: join(process.cwd(), "app", "public", "zk", `semaphore-${PROFUNDIDADE}.zkey`),
 };
 
+/** Um apelido fictício qualquer: aqui ele nunca sai deste arquivo. */
+const APELIDO = "a".repeat(64);
+
 function pdaConfig(pid: PublicKey) {
   return PublicKey.findProgramAddressSync([enc.encode("config")], pid)[0];
 }
-function pdaGrupo(pid: PublicKey, municipio: number) {
+function pdaGrupo(pid: PublicKey, municipio: number, setorByte: number) {
   const m = Buffer.alloc(4);
   m.writeUInt32LE(municipio);
-  return PublicKey.findProgramAddressSync([enc.encode("grupo"), m], pid)[0];
-}
-function pdaCaso(pid: PublicKey, alertaId: Buffer) {
-  return PublicKey.findProgramAddressSync([enc.encode("caso"), alertaId], pid)[0];
+  return PublicKey.findProgramAddressSync(
+    [enc.encode("grupo"), m, Buffer.from([setorByte])],
+    pid,
+  )[0];
 }
 function pdaNulificador(pid: PublicKey, anulador: Buffer) {
   return PublicKey.findProgramAddressSync(
@@ -49,21 +51,30 @@ function pdaNulificador(pid: PublicKey, anulador: Buffer) {
   )[0];
 }
 
-const alerta = () => Buffer.from(Keypair.generate().publicKey.toBytes());
-const hash32 = () => Array.from(Keypair.generate().publicKey.toBytes());
+/** `sha256(apelido ‖ peso ‖ sal)` — a mesma conta que o servidor faz. */
+function compromissoDoSinal(apelido: string, peso: number, salHex: string): Buffer {
+  return createHash("sha256")
+    .update(
+      Buffer.concat([
+        Buffer.from(apelido, "utf8"),
+        Buffer.from([peso]),
+        Buffer.from(salHex, "hex"),
+      ]),
+    )
+    .digest();
+}
+
+const salAleatorio = () =>
+  Buffer.from(Keypair.generate().publicKey.toBytes().slice(0, 16)).toString("hex");
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-describe("denúncia protegida", () => {
+describe("sinal credenciado", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const program = anchor.workspace.custodia as Program<Custodia>;
   const pid = program.programId;
 
-  /**
-   * Quem responde pelos casos abertos por denúncia neste município. Usa a chave
-   * fixa do projeto, e não uma descartável: o grupo fica cadastrado na devnet
-   * entre execuções, e o responsável dele precisa continuar batendo.
-   */
+  /** Quem credencia no município. Chave fixa: o grupo persiste entre execuções. */
   const creas = Keypair.fromSecretKey(
     Uint8Array.from(
       JSON.parse(readFileSync(join(process.cwd(), "keys", "creas.json"), "utf8")),
@@ -84,9 +95,6 @@ describe("denúncia protegida", () => {
       { limit: 200 },
       "confirmed",
     );
-    // Uma de cada vez, espaçadas: o pedido em lote estoura o limite da devnet
-    // de uma vez só, enquanto chamadas separadas deixam a biblioteca reagir ao
-    // "requisições demais" sozinha. Uma folha perdida mudaria a raiz em silêncio.
     const emOrdem = assinaturas
       .slice()
       .reverse()
@@ -94,7 +102,6 @@ describe("denúncia protegida", () => {
       .map((s) => s.signature);
 
     const folhas: string[] = [];
-    const txs: anchor.web3.VersionedTransactionResponse[] = [];
     for (const assinatura of emOrdem) {
       let tx = null;
       for (let tentativa = 0; tentativa < 4 && !tx; tentativa += 1) {
@@ -109,11 +116,6 @@ describe("denúncia protegida", () => {
         if (!tx) await dormir(500 * (tentativa + 1));
       }
       if (!tx) throw new Error(`a rede não devolveu a transação ${assinatura}`);
-      txs.push(tx);
-      await dormir(120);
-    }
-
-    for (const tx of txs) {
       for (const linha of tx.meta?.logMessages ?? []) {
         const dado = linha.match(/^Program data: (.+)$/)?.[1];
         if (!dado) continue;
@@ -128,51 +130,50 @@ describe("denúncia protegida", () => {
           folhas.push(BigInt("0x" + Buffer.from(f).toString("hex")).toString());
         }
       }
+      await dormir(120);
     }
     return folhas;
   }
 
   /** Gera a prova como o navegador do profissional geraria. */
-  async function provar(quem: any, alertaId: Buffer, periodo = PERIODO) {
+  async function provar(quem: any, peso: number, sal: string, periodo = PERIODO) {
+    const compromisso = compromissoDoSinal(APELIDO, peso, sal);
     return gerarProva(
       quem,
       grupo,
-      BigInt("0x" + alertaId.toString("hex")).toString(),
-      valorDoEscopo(MUNICIPIO, periodo).toString(),
+      BigInt("0x" + compromisso.toString("hex")).toString(),
+      valorDoEscopo(MUNICIPIO, SETOR_BYTE, periodo).toString(),
       PROFUNDIDADE,
       ARTEFATOS,
     );
   }
 
   /**
-   * Envia a abertura por denúncia com o relayer como **único** signatário.
+   * Envia o registro do sinal com o relayer como **único** signatário.
    *
-   * Montada à mão de propósito: o atalho do Anchor faria a carteira do provider
-   * assinar como pagadora, e aí a transação teria dois signatários. Aqui o
-   * ponto inteiro é que exista um só, e que ele não seja ninguém da rede de
-   * proteção — nem o denunciante.
+   * Montado à mão de propósito: o atalho do Anchor faria a carteira do provider
+   * assinar como pagadora, e aí a transação teria dois signatários. Aqui o ponto
+   * inteiro é que exista um só, e que ele não seja ninguém da rede de proteção —
+   * nem quem emitiu o sinal.
    */
-  async function enviar(prova: any, alertaId: Buffer, periodo = PERIODO) {
+  async function registrar(prova: any, peso: number, sal: string, periodo = PERIODO) {
     const anulador = paraBytes32(prova.nullifier);
     const instrucao = await program.methods
-      .abrirCasoPorDenuncia(
-        Array.from(alertaId),
+      .registrarSinalCredenciado(
         Array.from(provaParaBytes(prova.points)),
         Array.from(anulador),
         periodo,
-        hash32(),
-        new BN(120),
+        peso,
+        Array.from(compromissoDoSinal(APELIDO, peso, sal)),
       )
       .accountsPartial({
-        caso: pdaCaso(pid, alertaId),
-        grupo: pdaGrupo(pid, MUNICIPIO),
+        grupo: pdaGrupo(pid, MUNICIPIO, SETOR_BYTE),
         nulificador: pdaNulificador(pid, anulador),
         pagador: relayer.publicKey,
       })
       .instruction();
 
     const tx = new anchor.web3.Transaction()
-      // A conferência da prova não cabe no teto padrão de 200 mil.
       .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }))
       .add(instrucao);
     tx.feePayer = relayer.publicKey;
@@ -184,12 +185,11 @@ describe("denúncia protegida", () => {
   }
 
   before(async function () {
-    this.timeout(180_000);
+    this.timeout(240_000);
 
     const { Identity } = await import("@semaphore-protocol/identity");
     const { Group } = await import("@semaphore-protocol/group");
-    const proof = await import("@semaphore-protocol/proof");
-    gerarProva = proof.generateProof;
+    gerarProva = (await import("@semaphore-protocol/proof")).generateProof;
 
     const tx = new anchor.web3.Transaction();
     for (const k of [creas, relayer]) {
@@ -204,35 +204,20 @@ describe("denúncia protegida", () => {
     await provider.sendAndConfirm(tx);
 
     const config = pdaConfig(pid);
-    if (!(await program.account.config.fetchNullable(config))) {
-      await program.methods
-        .inicializar(Keypair.generate().publicKey)
-        .accountsPartial({ config, admin: provider.wallet.publicKey })
-        .rpc();
-    }
-
-    // O grupo de credenciados do município. São 8 profissionais fictícios —
-    // num sistema real seriam milhares, e é o tamanho do grupo, não a
-    // criptografia, que define a força do anonimato.
-    identidades = Array.from(
-      { length: 8 },
-      (_, i) => new Identity(`profissional-ficticio-${i}`),
-    );
-    const enderecoGrupo = pdaGrupo(pid, MUNICIPIO);
+    const enderecoGrupo = pdaGrupo(pid, MUNICIPIO, SETOR_BYTE);
     if (!(await program.account.grupoCredenciados.fetchNullable(enderecoGrupo))) {
       await program.methods
-        .registrarGrupo(MUNICIPIO, creas.publicKey)
-        .accountsPartial({
-          config,
-          grupo: enderecoGrupo,
-          admin: provider.wallet.publicKey,
-        })
+        .registrarGrupo(MUNICIPIO, SETOR, creas.publicKey)
+        .accountsPartial({ config, grupo: enderecoGrupo, admin: provider.wallet.publicKey })
         .rpc();
     }
 
     // A árvore é acumulativa e a devnet guarda estado entre execuções: só entram
-    // os que ainda não estão, e a raiz publicada precisa cobrir **todas** as
-    // folhas já credenciadas, não só as desta rodada.
+    // os que ainda não estão, e a raiz precisa cobrir **todas** as folhas.
+    identidades = Array.from(
+      { length: 8 },
+      (_, i) => new Identity(`profissional-educacao-${i}`),
+    );
     const jaNaRede = await lerFolhas(enderecoGrupo);
     const novas = identidades
       .map((i) => i.commitment.toString())
@@ -241,8 +226,6 @@ describe("denúncia protegida", () => {
     todasAsFolhas = [...jaNaRede, ...novas];
     grupo = new Group(todasAsFolhas.map((f) => BigInt(f)));
 
-    // Republica também quando a raiz na rede não corresponde às folhas: pode
-    // ter sobrado estado de uma execução que publicou raiz de um conjunto menor.
     const naRede = await program.account.grupoCredenciados.fetch(enderecoGrupo);
     const raizCerta = paraBytes32(grupo.root.toString());
     const desencontrada =
@@ -254,26 +237,19 @@ describe("denúncia protegida", () => {
           novas.map((c) => Array.from(paraBytes32(c))),
           Array.from(raizCerta),
         )
-        .accountsPartial({
-          config,
-          grupo: enderecoGrupo,
-          credenciador: provider.wallet.publicKey,
-        })
+        .accountsPartial({ config, grupo: enderecoGrupo, credenciador: creas.publicKey })
+        .signers([creas])
         .rpc();
     }
   });
 
   it("as folhas credenciadas vão para a cadeia, e a árvore se refaz a partir delas", async function () {
-    this.timeout(120_000);
+    this.timeout(180_000);
     const { Group } = await import("@semaphore-protocol/group");
+    const endereco = pdaGrupo(pid, MUNICIPIO, SETOR_BYTE);
 
-    const endereco = pdaGrupo(pid, MUNICIPIO);
     const folhas = await lerFolhas(endereco);
-    assert.deepEqual(
-      folhas,
-      todasAsFolhas,
-      "as folhas lidas da rede não são as que credenciamos",
-    );
+    assert.deepEqual(folhas, todasAsFolhas, "as folhas lidas não são as credenciadas");
 
     const refeita = new Group(folhas.map((f) => BigInt(f)));
     const naRede = await program.account.grupoCredenciados.fetch(endereco);
@@ -282,27 +258,15 @@ describe("denúncia protegida", () => {
       paraBytes32(refeita.root.toString()).toString("hex"),
       "a raiz publicada não corresponde às folhas credenciadas",
     );
-    console.log(`      → árvore refeita a partir de ${folhas.length} folhas lidas da rede`);
+    console.log(`      → árvore refeita a partir de ${folhas.length} folhas da rede`);
   });
 
-  it("uma prova válida abre o caso — e ninguém assinou por instituição", async function () {
+  it("um sinal credenciado é registrado — e ninguém assinou por instituição", async function () {
     this.timeout(180_000);
-    const alertaId = alerta();
-    const prova = await provar(identidades[0], alertaId);
+    const sal = salAleatorio();
+    const prova = await provar(identidades[0], 2, sal);
+    const assinatura = await registrar(prova, 2, sal);
 
-    const assinatura = await enviar(prova, alertaId);
-
-    const caso = await program.account.caso.fetch(pdaCaso(pid, alertaId));
-    assert.deepEqual(caso.origem, { denunciaProtegida: {} });
-    assert.notEqual(
-      caso.custodiante.toBase58(),
-      PublicKey.default.toBase58(),
-      "o caso nasceu sem dono",
-    );
-    assert.deepEqual(caso.estado, { aberto: {} });
-
-    // A prova de que ninguém precisou autorizar: um único signatário, e ele é
-    // só quem pagou a taxa.
     const tx = await provider.connection.getTransaction(assinatura, {
       commitment: "confirmed",
       maxSupportedTransactionVersion: 0,
@@ -313,26 +277,40 @@ describe("denúncia protegida", () => {
     assert.equal(assinantes.length, 1, "deveria haver um único signatário");
     assert.equal(assinantes[0].toBase58(), relayer.publicKey.toBase58());
 
-    // O consumo do **nosso** programa, e não o da instrução de orçamento que
-    // vai junto na transação.
     const linha = (tx!.meta?.logMessages ?? []).find(
       (l) => l.includes(pid.toBase58()) && l.includes("consumed"),
     );
     const consumo = Number(linha?.match(/consumed (\d+) of/)?.[1] ?? 0);
-    console.log(`      → conferir a prova e abrir o caso: ${consumo.toLocaleString("pt-BR")} unidades`);
-    console.log(`      → teto por transação: 1.400.000 · padrão por instrução: 200.000`);
+    console.log(
+      `      → conferir a prova e registrar: ${consumo.toLocaleString("pt-BR")} unidades`,
+    );
     assert.isBelow(consumo, 1_400_000, "não cabe no teto de uma transação");
   });
 
-  it("a mesma pessoa não denuncia duas vezes no mesmo período", async function () {
+  it("o registro não abre caso nenhum — quem abre é o cruzamento", async function () {
+    // A instrução não toca sequer a conta do caso. Este teste existe para que a
+    // separação fique escrita, e não só entendida.
+    const instrucao = program.idl.instructions.find(
+      (i) => i.name.replace(/_/g, "").toLowerCase() === "registrarsinalcredenciado",
+    );
+    assert.isDefined(instrucao, "a instrução não está no IDL");
+    const nomes = instrucao!.accounts.map((a) => a.name.replace(/_/g, "").toLowerCase());
+    assert.notInclude(nomes, "caso");
+    assert.deepEqual(nomes.slice().sort(), [
+      "grupo",
+      "nulificador",
+      "pagador",
+      "systemprogram",
+    ]);
+  });
+
+  it("a mesma pessoa não emite dois sinais no mesmo setor e período", async function () {
     this.timeout(180_000);
-    // Mesma identidade e mesmo escopo do teste anterior: o anulador se repete,
-    // e a conta que o marca já existe.
-    const alertaId = alerta();
-    const prova = await provar(identidades[0], alertaId);
+    const sal = salAleatorio();
+    const prova = await provar(identidades[0], 1, sal);
     try {
-      await enviar(prova, alertaId);
-      assert.fail("a segunda denúncia deveria ter sido barrada");
+      await registrar(prova, 1, sal);
+      assert.fail("o segundo sinal deveria ter sido barrado");
     } catch (e) {
       assert.match(String(e), /already in use|custom program error/i);
     }
@@ -340,27 +318,28 @@ describe("denúncia protegida", () => {
 
   it("prova adulterada não passa", async function () {
     this.timeout(180_000);
-    const alertaId = alerta();
-    const prova = await provar(identidades[1], alertaId);
+    const sal = salAleatorio();
+    const prova = await provar(identidades[1], 2, sal);
     const pontos = [...prova.points];
     pontos[0] = (BigInt(pontos[0]) + 1n).toString();
     try {
-      await enviar({ ...prova, points: pontos }, alertaId);
+      await registrar({ ...prova, points: pontos }, 2, sal);
       assert.fail("prova adulterada deveria falhar");
     } catch (e) {
       assert.match(String(e), /ProvaInvalida|ProvaMalFormada|custom program error/i);
     }
   });
 
-  it("a prova de um caso não serve para abrir outro", async function () {
+  it("não dá para trocar o peso de um sinal já provado", async function () {
     this.timeout(180_000);
-    const alertaId = alerta();
-    const prova = await provar(identidades[2], alertaId);
-    // Mesma prova, outro caso: a mensagem embutida não bate com o novo alerta.
-    const outro = alerta();
+    // Prova feita para um apontamento, apresentada como denúncia: o compromisso
+    // embutido na prova não bate mais. É o que impede quem repassa a transação
+    // de transformar uma observação em acusação.
+    const sal = salAleatorio();
+    const prova = await provar(identidades[2], 1, sal);
     try {
-      await enviar(prova, outro);
-      assert.fail("a prova não deveria valer para outro caso");
+      await registrar(prova, 2, sal);
+      assert.fail("trocar o peso deveria falhar");
     } catch (e) {
       assert.match(String(e), /ProvaInvalida|custom program error/i);
     }
@@ -368,17 +347,17 @@ describe("denúncia protegida", () => {
 
   it("a prova de um período não serve para outro", async function () {
     this.timeout(180_000);
-    const alertaId = alerta();
-    const prova = await provar(identidades[3], alertaId, PERIODO);
+    const sal = salAleatorio();
+    const prova = await provar(identidades[3], 2, sal, PERIODO);
     try {
-      await enviar(prova, alertaId, PERIODO + 1);
+      await registrar(prova, 2, sal, PERIODO + 1);
       assert.fail("a prova não deveria valer para outro período");
     } catch (e) {
       assert.match(String(e), /ProvaInvalida|custom program error/i);
     }
   });
 
-  it("quem não está no grupo não consegue denunciar", async function () {
+  it("quem não está na lista do setor não consegue emitir", async function () {
     this.timeout(180_000);
     const { Identity } = await import("@semaphore-protocol/identity");
     const { Group } = await import("@semaphore-protocol/group");
@@ -387,54 +366,32 @@ describe("denúncia protegida", () => {
     // provar contra ela. A raiz que o programa usa é a cadastrada, não a dele.
     const intruso = new Identity("nao-credenciado");
     const arvoreFalsa = new Group([intruso.commitment]);
-    const alertaId = alerta();
+    const sal = salAleatorio();
     const prova = await gerarProva(
       intruso,
       arvoreFalsa,
-      BigInt("0x" + alertaId.toString("hex")).toString(),
-      valorDoEscopo(MUNICIPIO, PERIODO).toString(),
+      BigInt("0x" + compromissoDoSinal(APELIDO, 2, sal).toString("hex")).toString(),
+      valorDoEscopo(MUNICIPIO, SETOR_BYTE, PERIODO).toString(),
       PROFUNDIDADE,
       ARTEFATOS,
     );
     try {
-      await enviar(prova, alertaId);
-      assert.fail("um intruso não deveria conseguir abrir caso");
+      await registrar(prova, 2, sal);
+      assert.fail("um intruso não deveria conseguir emitir sinal");
     } catch (e) {
       assert.match(String(e), /ProvaInvalida|custom program error/i);
     }
   });
 
-  it("o caso nascido de denúncia anda como qualquer outro", async function () {
-    this.timeout(240_000);
-    const alertaId = alerta();
-    const prova = await provar(identidades[4], alertaId);
-    await enviar(prova, alertaId);
-
-    const endereco = pdaCaso(pid, alertaId);
-    const antes = await program.account.caso.fetch(endereco);
-    const responsavel = antes.custodiante;
-
-    // O responsável é o que o grupo definiu, e ele não assinou nada até aqui.
-    assert.equal(responsavel.toBase58(), creas.publicKey.toBase58());
-
-    const ct = Keypair.generate();
-    await program.methods
-      .transferirPara(ct.publicKey)
-      .accountsPartial({ caso: endereco, custodiante: responsavel })
-      .signers([creas])
-      .rpc();
-
-    const meio = await program.account.caso.fetch(endereco);
-    assert.equal(
-      meio.custodiante.toBase58(),
-      responsavel.toBase58(),
-      "passar adiante não pode trocar o responsável",
-    );
-    assert.deepEqual(meio.estado, { pendenteAceite: {} });
-    assert.deepEqual(meio.origem, { denunciaProtegida: {} });
-  });
-
-  after(async () => {
-    await dormir(500);
+  it("peso fora de 1 e 2 é recusado", async function () {
+    this.timeout(180_000);
+    const sal = salAleatorio();
+    const prova = await provar(identidades[4], 2, sal);
+    try {
+      await registrar(prova, 5, sal);
+      assert.fail("peso 5 deveria falhar");
+    } catch (e) {
+      assert.match(String(e), /PesoInvalido|custom program error/i);
+    }
   });
 });

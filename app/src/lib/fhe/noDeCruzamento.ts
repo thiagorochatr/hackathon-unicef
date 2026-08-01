@@ -1,6 +1,6 @@
 import "server-only";
 import { carregarCifra, nucleo } from "./parametros";
-import type { Papel } from "../tipos";
+import type { Setor } from "../tipos";
 
 /**
  * O nó de cruzamento.
@@ -13,9 +13,12 @@ import type { Papel } from "../tipos";
  */
 
 interface Envelope {
-  papel: Papel;
+  /** De que setor veio. O cruzamento conta setores, não instituições. */
+  setor: Setor;
   cifraB64: string;
   recebidoEm: number;
+  /** Se veio de um profissional que provou credencial sem se identificar. */
+  protegido: boolean;
 }
 
 /** apelido da criança -> envelopes recebidos */
@@ -25,10 +28,22 @@ const global_ = globalThis as unknown as {
 global_.__fheRecebidos ??= new Map();
 const recebidos = global_.__fheRecebidos;
 
-export function receber(apelido: string, papel: Papel, cifraB64: string): void {
-  const atuais = recebidos.get(apelido) ?? [];
-  if (atuais.some((e) => e.papel === papel)) return;
-  atuais.push({ papel, cifraB64, recebidoEm: Date.now() });
+/**
+ * Guarda o envelope de um setor.
+ *
+ * Um envelope por setor: se três professores da mesma escola emitissem, seriam
+ * três sinais de educação, e somá-los fingiria uma convergência que não houve.
+ * O último sinal do setor prevalece — na demonstração isso permite substituir um
+ * apontamento por uma denúncia sem reiniciar tudo.
+ */
+export function receber(
+  apelido: string,
+  setor: Setor,
+  cifraB64: string,
+  protegido = false,
+): void {
+  const atuais = (recebidos.get(apelido) ?? []).filter((e) => e.setor !== setor);
+  atuais.push({ setor, cifraB64, recebidoEm: Date.now(), protegido });
   recebidos.set(apelido, atuais);
 }
 
