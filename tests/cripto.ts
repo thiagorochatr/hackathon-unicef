@@ -176,6 +176,70 @@ describe("invariantes de criptografia", () => {
     });
   });
 
+  describe("trava do diário", () => {
+    /**
+     * O diário existe para mostrar a jurados que a criptografia está rodando.
+     * Um diário que vazasse segredo, apelido ou envelope derrubaria justamente
+     * o que ele deveria demonstrar — então a trava é parte da funcionalidade,
+     * não um detalhe de implementação.
+     */
+    let diario: typeof import("../app/src/lib/diario");
+
+    before(async () => {
+      diario = await import("../app/src/lib/diario");
+    });
+
+    const ultimoValor = (chave: string) => {
+      const { eventos } = diario.ler();
+      return String(eventos[eventos.length - 1].detalhes?.[chave]);
+    };
+
+    it("recusa segredo de identidade, apelido, anulador e envelope", async () => {
+      const { Identity } = await import("@semaphore-protocol/identity");
+      const perigosos: Record<string, string> = {
+        segredo: new Identity().export(),
+        apelido: "08c337a1cc7646040da396b6029e2378882bc01e",
+        anulador:
+          "17153124062889964666861731727863285513755325220328199083597381373175486979920",
+        envelope: "XqEQBAECAAATmQYAAAAAACi1L".repeat(200),
+        chave: "a".repeat(64),
+      };
+      for (const [nome, valor] of Object.entries(perigosos)) {
+        diario.registrar("app", "teste", { [nome]: valor });
+        const guardado = ultimoValor(nome);
+        assert.include(guardado, "recusado", `${nome} passou pelo diário`);
+        assert.notInclude(
+          guardado,
+          valor.slice(0, 24),
+          `${nome} vazou um pedaço reconhecível`,
+        );
+      }
+    });
+
+    it("deixa passar frase, tamanho e número", () => {
+      const legitimos: Record<string, string | number> = {
+        frase: "o nó consegue abrir: não — não tem chave secreta",
+        tamanho: "576.684 letras",
+        conta: "r · s · (s−1), limite 2",
+        numero: 576684,
+      };
+      diario.registrar("app", "teste", legitimos);
+      for (const [nome, valor] of Object.entries(legitimos)) {
+        assert.equal(
+          ultimoValor(nome),
+          String(valor),
+          `${nome} foi recusado sem motivo`,
+        );
+      }
+    });
+
+    it("a própria descrição do evento passa pela trava", () => {
+      diario.registrar("app", "vazamento: " + "b".repeat(40));
+      const { eventos } = diario.ler();
+      assert.include(eventos[eventos.length - 1].acao, "recusado");
+    });
+  });
+
   describe("escopo do anulador", () => {
     /**
      * Estes bytes estão fixados aqui **e** no teste equivalente em Rust

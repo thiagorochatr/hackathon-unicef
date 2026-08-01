@@ -1,5 +1,6 @@
 import "server-only";
 import { carregarCifra, nucleo } from "./parametros";
+import { registrar } from "../diario";
 
 /**
  * O comitê é a única parte que tem a chave capaz de abrir os envelopes.
@@ -107,7 +108,15 @@ export async function avaliarVeredito(
   vereditoB64: string,
 ): Promise<{ alerta: boolean; aberto: number }> {
   const aberto = await (await chaves()).abrir(vereditoB64);
-  return { alerta: aberto !== 0, aberto };
+  const alerta = aberto !== 0;
+
+  registrar("fha", "comitê abriu o veredito", {
+    "o que ele aprendeu": alerta ? "passou do limite" : "não passou",
+    "em bits": 1,
+    "contagem de sinais": "não — a máscara esconde",
+    "número que saiu": aberto === 0 ? "zero" : `${aberto.toLocaleString("pt-BR")} (sem sentido)`,
+  });
+  return { alerta, aberto };
 }
 
 /**
@@ -115,5 +124,10 @@ export async function avaliarVeredito(
  * uma chave diferente, devolve um número sem sentido.
  */
 export async function abrirComChaveErrada(cifraB64: string): Promise<number> {
-  return (await chaves()).abrirComOutraChave(cifraB64);
+  const valor = (await chaves()).abrirComOutraChave(cifraB64);
+  registrar("fha", "mesma coisa, aberta com outra chave", {
+    resultado: "número sem sentido",
+    "prova que": "o sigilo não depende de boa vontade",
+  });
+  return valor;
 }

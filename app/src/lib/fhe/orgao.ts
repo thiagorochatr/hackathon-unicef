@@ -1,6 +1,7 @@
 import "server-only";
 import { chavePublica } from "./comite";
 import { nucleo } from "./parametros";
+import { registrar } from "../diario";
 
 /**
  * O lado do órgão que emite o sinal.
@@ -51,5 +52,11 @@ export async function cifrarComoOrgao(valor: number): Promise<string> {
 
   const b64 = fechado.save();
   fechado.delete();
+
+  registrar("fha", "envelope lacrado", {
+    tamanho: `${b64.length.toLocaleString("pt-BR")} letras`,
+    "chave usada": "pública — não abre nada",
+    "peso dentro": "cifrado, invisível de fora",
+  });
   return b64;
 }

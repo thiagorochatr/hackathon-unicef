@@ -77,6 +77,26 @@ export async function gerarProva(
   );
   const ms = Math.round(performance.now() - t0);
 
+  // O diário fica no servidor, mas este evento nasce aqui — a prova é gerada
+  // nesta máquina, e o tempo dela é dos números que mais valem mostrar. O que
+  // viaja são grandezas, nunca o segredo nem o apelido.
+  void fetch("/api/diario", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      acao: "prova gerada no navegador de quem denuncia",
+      detalhes: {
+        tempo: `${ms} ms`,
+        tamanho: "256 bytes",
+        "o segredo saiu do aparelho": "não",
+        "quem provou": "não dá para saber, nem para nós",
+        "profundidade da árvore": PROFUNDIDADE,
+      },
+    }),
+  }).catch(() => {
+    // o diário é acessório: se falhar, a denúncia segue
+  });
+
   return {
     pontos: prova.points as unknown as string[],
     anulador: prova.nullifier.toString(),

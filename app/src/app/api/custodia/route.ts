@@ -13,6 +13,7 @@ import {
 } from "@/lib/cadeia";
 import type { Estado, Papel } from "@/lib/tipos";
 import { confereAgente, hashDoAgente, identificacaoDoAgente } from "@/lib/agente";
+import { registrar } from "@/lib/diario";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,6 +148,16 @@ export async function POST(req: Request) {
             autoridade: emissor.publicKey,
           })
           .rpc();
+        registrar(
+          "cadeia",
+          "caso aberto na rede",
+          {
+            responsável: "CREAS",
+            "o responsável assinou": "não — o caso nasce contra ele",
+            "dado de criança na transação": "nenhum",
+          },
+          assinatura,
+        );
         return NextResponse.json({
           alertaId: id.toString("hex"),
           assinatura,

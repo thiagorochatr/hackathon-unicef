@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { comite, pdaAberturas, pdaInstituicao, programa } from "../cadeia";
+import { registrar } from "../diario";
 
 /**
  * O registro público das aberturas do comitê.
@@ -54,6 +55,17 @@ export async function registrarAbertura(
   const conta = await prog.account.registroAberturas.fetch(
     pdaAberturas(quem.publicKey),
   );
+  registrar(
+    "cadeia",
+    "abertura do comitê registrada na rede",
+    {
+      "total de aberturas": Number(conta.total),
+      "viraram alerta": Number(conta.alertas),
+      "quem confere": "qualquer pessoa, lendo a conta",
+    },
+    assinatura,
+  );
+
   return {
     assinatura,
     total: Number(conta.total),

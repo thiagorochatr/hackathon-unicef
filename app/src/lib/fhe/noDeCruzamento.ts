@@ -1,6 +1,7 @@
 import "server-only";
 import { carregarCifra, fatorDeMascaramento, nucleo } from "./parametros";
 import type { Setor } from "../tipos";
+import { registrar } from "../diario";
 
 /**
  * O nó de cruzamento.
@@ -45,6 +46,13 @@ export function receber(
   const atuais = (recebidos.get(apelido) ?? []).filter((e) => e.setor !== setor);
   atuais.push({ setor, cifraB64, recebidoEm: Date.now(), protegido });
   recebidos.set(apelido, atuais);
+
+  registrar("fha", "envelope recebido pelo nó", {
+    setor,
+    origem: protegido ? "profissional protegido" : "sistema do órgão",
+    "envelopes agora": atuais.length,
+    "o nó consegue abrir": "não — não tem chave secreta",
+  });
 }
 
 export function listar(apelido: string): Envelope[] {
@@ -71,6 +79,13 @@ async function somar(apelido: string) {
     avaliador.add(soma, parcela, soma);
     parcela.delete();
   }
+
+  registrar("fha", "soma feita às cegas", {
+    parcelas: envelopes.length,
+    setores: envelopes.map((e) => e.setor).join(" + "),
+    "chave secreta usada": "nenhuma",
+    "parcelas abertas": "nenhuma",
+  });
   return soma;
 }
 
@@ -139,5 +154,12 @@ export async function avaliarLimiar(
   produto.delete();
   soma.delete();
   relin.delete();
+
+  registrar("fha", "comparação com o limite, dentro do envelope", {
+    conta: `r · s · (s−1), limite ${limiar}`,
+    "fator de máscara": "sorteado agora",
+    resultado: `${b64.length.toLocaleString("pt-BR")} letras, ainda fechado`,
+    "o nó soube o resultado": "não",
+  });
   return b64;
 }

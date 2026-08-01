@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { ristretto255_oprf } from "@noble/curves/ed25519.js";
 import { apelidoEmHex, normalizarIdentificador } from "./apelido";
+import { registrar } from "./diario";
 
 /**
  * Apelido da criança.
@@ -90,5 +91,11 @@ export function apelidoDaCrianca(identificador: string): string {
  * está por trás, nem se duas consultas falam da mesma pessoa.
  */
 export function avaliarApelidoCego(embaralhado: Uint8Array): Uint8Array {
-  return oprf.blindEvaluate(chave(), embaralhado);
+  const resposta = oprf.blindEvaluate(chave(), embaralhado);
+  registrar("oprf", "consulta embaralhada respondida", {
+    "de qual criança se trata": "impossível saber daqui",
+    "duas consultas iguais se parecem": "não — o embaralhamento muda",
+    "a chave saiu daqui": "não",
+  });
+  return resposta;
 }

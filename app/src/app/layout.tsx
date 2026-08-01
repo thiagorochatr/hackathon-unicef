@@ -58,6 +58,12 @@ export default function RootLayout({
               >
                 Painel público
               </Link>
+              <Link
+                href="/diario"
+                className="rounded px-2 py-1 hover:bg-[var(--fundo-3)]"
+              >
+                Diário
+              </Link>
             </div>
           </nav>
         </div>

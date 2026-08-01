@@ -14,6 +14,7 @@ import { paraBytes32, provaParaBytes } from "@/lib/zk/formato";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { CRIANCA_FICTICIA } from "@/lib/fixtures";
 import { SETORES, type Setor } from "@/lib/tipos";
+import { registrar } from "@/lib/diario";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -133,10 +134,23 @@ export async function POST(req: Request) {
           })
           .rpc();
 
+        const atualizado = await lerGrupo(setor);
+        registrar(
+          "cadeia",
+          "profissional credenciado no setor",
+          {
+            setor,
+            "credenciados agora": atualizado?.membros ?? 0,
+            "quem credenciou": "órgão responsável do município",
+            "a folha foi a evento": "sim — a árvore é refazível por qualquer um",
+          },
+          assinatura,
+        );
+
         return NextResponse.json({
           assinatura,
           link: explorador(assinatura),
-          grupo: await lerGrupo(setor),
+          grupo: atualizado,
         });
       }
 
@@ -188,6 +202,29 @@ export async function POST(req: Request) {
 
         const assinatura = await rede.sendRawTransaction(tx.serialize());
         await rede.confirmTransaction(assinatura, "confirmed");
+
+        // O consumo real da conferência, lido da própria transação.
+        const confirmada = await rede.getTransaction(assinatura, {
+          commitment: "confirmed",
+          maxSupportedTransactionVersion: 0,
+        });
+        const linha = (confirmada?.meta?.logMessages ?? []).find(
+          (l) => l.includes(prog.programId.toBase58()) && l.includes("consumed"),
+        );
+        const consumo = Number(linha?.match(/consumed (\d+) of/)?.[1] ?? 0);
+
+        registrar(
+          "zk",
+          "prova conferida pela rede, não por nós",
+          {
+            "quem conferiu": "o programa on-chain",
+            custo: `${consumo.toLocaleString("pt-BR")} unidades de computação`,
+            "assinaturas na transação": 1,
+            "órgão assinou": "nenhum",
+            "quem autorizou": "a prova",
+          },
+          assinatura,
+        );
 
         return NextResponse.json({
           assinatura,

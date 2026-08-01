@@ -35,6 +35,18 @@ export async function obterApelido(identificador: string): Promise<string> {
   const d = await r.json();
   if (d.erro) throw new Error(d.erro);
 
+  void fetch("/api/diario", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      acao: "apelido pedido sem dizer de quem",
+      detalhes: {
+        "o identificador saiu do aparelho": "não",
+        "o que viajou": "um ponto embaralhado, diferente a cada vez",
+      },
+    }),
+  }).catch(() => {});
+
   // Desembaralha. O resultado é idêntico ao que o sistema do órgão calcularia
   // direto — é isso que faz os dois caminhos se encontrarem no cruzamento.
   return apelidoEmHex(oprf.finalize(entrada, blind, hexParaBytes(d.avaliado)));
