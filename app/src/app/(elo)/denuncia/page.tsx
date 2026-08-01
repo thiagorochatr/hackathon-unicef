@@ -195,6 +195,22 @@ export default function TelaDenuncia() {
           <strong className="text-[var(--texto)]">qual</strong> deles é. O sinal
           entra no mesmo cruzamento dos outros; o caso continua nascendo de lá.
         </p>
+        <div className="max-w-2xl rounded-lg border border-[var(--borda)] bg-[var(--fundo-2)] p-4 text-sm text-[var(--texto-2)]">
+          <p className="font-medium text-[var(--texto)]">
+            Isto aqui roda fora do sistema do seu órgão. De propósito.
+          </p>
+          <p className="mt-1">
+            A prova nasce no seu aparelho, e o segredo que a gera nunca sai dele.
+            Se este canal ficasse dentro do sistema da escola ou da unidade de
+            saúde, quem administra aquele sistema poderia registrar que você o
+            usou — e é muitas vezes dele que se tem medo.
+          </p>
+          <p className="mt-2 text-xs text-[var(--texto-3)]">
+            A criptografia protege contra a rede e contra quem recebe. Ela não
+            protege contra o dono do software onde roda. Por isso o software é
+            outro.
+          </p>
+        </div>
       </header>
 
       {erro && (

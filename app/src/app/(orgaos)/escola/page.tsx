@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ESCOLA,
   LIMITE_FALTAS,
@@ -9,13 +9,7 @@ import {
   faltas,
   type Aluno,
 } from "./dados";
-import {
-  enviarComoEscola,
-  enviarProtegido,
-  prepararLista,
-  protocolo,
-  type Passo,
-} from "./enviar";
+import { enviarComoEscola, protocolo, type Passo } from "./enviar";
 
 const DIAS = Array.from({ length: 20 }, (_, i) => i + 1);
 
@@ -27,16 +21,8 @@ export default function DiarioDeClasse() {
   );
   const [passos, setPassos] = useState<Passo[]>([]);
   const [enviando, setEnviando] = useState<string | null>(null);
-  const [recibo, setRecibo] = useState<{ protocolo: string; protegido: boolean } | null>(
-    null,
-  );
+  const [recibo, setRecibo] = useState<{ protocolo: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-
-  // A lista de credenciados demora a ser reconstruída da cadeia. Começar agora,
-  // enquanto a chamada está sendo olhada, evita a espera na hora de enviar.
-  useEffect(() => {
-    prepararLista();
-  }, []);
 
   function abrir(a: Aluno) {
     setAberto(a);
@@ -45,19 +31,16 @@ export default function DiarioDeClasse() {
     setErro(null);
   }
 
-  async function enviar(protegido: boolean) {
-    setEnviando(protegido ? "protegido" : "escola");
+  async function enviar() {
+    setEnviando("escola");
     setPassos([]);
     setErro(null);
     try {
       const avisar = (p: Passo) => setPassos((atuais) => [...atuais, p]);
-      if (protegido) {
-        // Suspeita de violência é afirmação, não observação: pesa 2.
-        await enviarProtegido(tipo === TIPOS_OCORRENCIA[1] ? 2 : 1, avisar);
-      } else {
-        await enviarComoEscola(avisar);
-      }
-      setRecibo({ protocolo: protocolo(), protegido });
+      // O peso vem do que está sendo dito, não do canal: suspeita de violência
+      // é afirmação e pesa 2; os outros tipos são observação e pesam 1.
+      await enviarComoEscola(tipo === TIPOS_OCORRENCIA[1] ? 2 : 1, avisar);
+      setRecibo({ protocolo: protocolo() });
     } catch (e) {
       setErro(String(e instanceof Error ? e.message : e));
     } finally {
@@ -227,41 +210,63 @@ export default function DiarioDeClasse() {
                 />
               </label>
 
-              {/* As duas saídas */}
+              {/* O envio em nome da unidade */}
               {!recibo && (
-                <div className="grid gap-3 border-t border-[var(--borda)] pt-3 lg:grid-cols-2">
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => enviar(false)}
-                      disabled={enviando != null}
-                      className="botao-gov-vazado w-full"
-                    >
-                      {enviando === "escola" ? "enviando…" : "Registrar em nome da unidade"}
-                    </button>
-                    <p className="text-[0.6875rem] text-[var(--texto-2)]">
-                      O encaminhamento sai assinado pela escola, como já sai hoje. Fica
-                      registrado quem lançou.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => enviar(true)}
-                      disabled={enviando != null}
-                      className="botao-gov w-full"
-                    >
-                      {enviando === "protegido"
-                        ? "enviando…"
-                        : "Enviar sem me identificar"}
-                    </button>
-                    <p className="text-[0.6875rem] text-[var(--texto-2)]">
-                      Você prova que é profissional credenciado da rede de educação
-                      deste município — o aviso vale — sem que ninguém descubra qual
-                      profissional foi. <strong>Nem a direção, nem a secretaria, nem
-                      quem recebe.</strong>
-                    </p>
-                  </div>
+                <div className="border-t border-[var(--borda)] pt-3">
+                  <button
+                    onClick={enviar}
+                    disabled={enviando != null}
+                    className="botao-gov"
+                  >
+                    {enviando ? "enviando…" : "Registrar em nome da unidade"}
+                  </button>
+                  <p className="mt-2 text-[0.6875rem] text-[var(--texto-2)]">
+                    O encaminhamento sai assinado pela escola, como a lei já obriga.
+                    Fica registrado quem lançou, e fica provado que a unidade avisou.
+                  </p>
                 </div>
               )}
+
+              {/*
+                O canal protegido é avisado aqui, e executado fora.
+
+                Ele já esteve dentro deste formulário, e era errado: de quem o
+                professor tem medo é, muitas vezes, da própria direção. Gerar a
+                prova dentro do software da escola põe o segredo dele na máquina
+                de quem ele teme.
+              */}
+              <div
+                className="rounded border p-3"
+                style={{ borderColor: "var(--alerta)", background: "color-mix(in srgb, var(--alerta) 7%, transparent)" }}
+              >
+                <p className="text-[0.8125rem] font-bold">
+                  Você não precisa passar por aqui para avisar.
+                </p>
+                <p className="mt-1 text-[0.75rem] text-[var(--texto-2)]">
+                  Existe um canal em que o profissional prova que é da rede de
+                  educação deste município — o aviso vale igual — sem que ninguém
+                  descubra qual profissional foi.{" "}
+                  <strong className="text-[var(--texto)]">
+                    Ele não é deste sistema, e roda fora dele.
+                  </strong>{" "}
+                  É por isso que a escola não tem como saber que você o usou.
+                </p>
+                <p className="mt-2 font-mono text-[0.8125rem]">
+                  {"{endereço do canal}"}/denuncia
+                </p>
+                <p className="mt-1 text-[0.6875rem] text-[var(--texto-3)]">
+                  O endereço está escrito, e não como link, de propósito: um clique
+                  daqui seria registrado por este sistema — e seria o próprio sistema
+                  da escola sabendo que você pensou em avisar por fora.
+                </p>
+                <a
+                  href="/denuncia"
+                  className="mt-2 inline-block text-[0.6875rem] underline"
+                  style={{ color: "var(--texto-3)" }}
+                >
+                  abrir mesmo assim, só nesta demonstração
+                </a>
+              </div>
 
               {passos.length > 0 && (
                 <div className="space-y-1 rounded border border-[var(--borda)] bg-[var(--fundo-3)] p-3">
@@ -296,11 +301,8 @@ export default function DiarioDeClasse() {
                     Ocorrência registrada · protocolo {recibo.protocolo}
                   </p>
                   <p className="mt-1 text-[0.75rem] text-[var(--texto-2)]">
-                    {recibo.protegido
-                      ? "O aviso saiu sem sua identificação. Nem este sistema sabe quem o enviou."
-                      : "O encaminhamento saiu em nome da unidade."}{" "}
-                    O que deixou a escola foi um envelope fechado — nem o conteúdo, nem o
-                    nome do aluno.
+                    O encaminhamento saiu em nome da unidade. O que deixou a escola foi
+                    um envelope fechado — nem o conteúdo, nem o nome do aluno.
                   </p>
                   <p className="mt-2 text-[0.6875rem] text-[var(--texto-2)]">
                     A partir daqui a escola não acompanha mais. Se outro setor tiver

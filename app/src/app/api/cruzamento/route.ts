@@ -78,10 +78,21 @@ export async function POST(req: Request) {
           return NextResponse.json({ erro: "órgão inválido" }, { status: 400 });
         }
         // Buscar a chave pública prova que o órgão não precisa da chave secreta.
+        /**
+         * O peso vem do que está sendo dito, e **não do canal**.
+         *
+         * Antes o institucional pesava 1 sempre, e só o protegido podia pesar 2.
+         * Isso fazia o mesmo relato sobre a mesma criança valer menos quando a
+         * instituição punha o nome — o contrário do razoável.
+         *
+         * Limitação declarada: esta rota não autentica o órgão, porque neste
+         * protótipo a chave dele está no nosso servidor. Num sistema real quem
+         * assina é o sistema da instituição, e aí o peso vem com assinatura.
+         */
+        const peso = corpo.peso === 2 ? 2 : 1;
         await chavePublica();
         const { cifrarComoOrgao } = await import("@/lib/fhe/orgao");
-        // Sinal institucional pesa 1: é observação, não afirmação.
-        const cifra = await cifrarComoOrgao(1);
+        const cifra = await cifrarComoOrgao(peso);
         no.receber(apelido(), SETOR_DO_PAPEL[papel], cifra);
         return NextResponse.json({ sinais: resumo() });
       }
