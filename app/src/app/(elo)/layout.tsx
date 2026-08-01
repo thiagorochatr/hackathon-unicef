@@ -30,7 +30,7 @@ export default function LayoutElo({
               Cruzamento
             </Link>
             <Link href="/caso" className="rounded px-2 py-1 hover:bg-[var(--fundo-3)]">
-              Custódia
+              A conta na rede
             </Link>
             <Link href="/painel" className="rounded px-2 py-1 hover:bg-[var(--fundo-3)]">
               Painel público

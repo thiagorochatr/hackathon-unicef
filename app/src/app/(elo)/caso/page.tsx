@@ -1,111 +1,98 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
 import { Relogio, useAgora } from "@/components/Relogio";
-import { acoes } from "@/lib/store";
 import { useCaso } from "@/lib/useCaso";
-import { ESTADO_ROTULO, PAPEIS, PAPEL, type Papel } from "@/lib/tipos";
-import { SeletorPrazo } from "@/components/SeletorPrazo";
+import { ESTADO_ROTULO, PAPEL } from "@/lib/tipos";
 import { ContaNaRede } from "@/components/ContaNaRede";
 
 const LINK_TX = (a: string) => `https://explorer.solana.com/tx/${a}?cluster=devnet`;
 
+/**
+ * O caso, ao vivo — e **só** ao vivo.
+ *
+ * ## O que esta tela deixou de ser
+ *
+ * Ela já teve uma fileira de botões onde se escolhia "você é UBS, escola, CREAS,
+ * Conselho, MP" e se agia como cada um. Aquilo era a encenação inteira num lugar
+ * só, e tinha o problema de ser exatamente a imagem que o projeto critica: um
+ * sistema central com abas.
+ *
+ * Agir agora é dos portais — cada órgão no software dele, em `/creas`,
+ * `/conselho`, `/mp`. Aqui não há nenhum botão que escreva na rede.
+ *
+ * ## O que ela passou a ser
+ *
+ * A prova crua. Nenhum sistema de governo mostraria o conteúdo bruto da própria
+ * conta, o selo da trilha ou a lista de transações — e é justamente isso que
+ * precisa estar visível em algum lugar, porque é o que sustenta a frase de que
+ * ninguém precisa acreditar em nós.
+ *
+ * Ela lê da rede a cada poucos segundos. Abra num monitor ao lado dos portais e
+ * o estado muda sozinho conforme os órgãos agem: quem responde, o prazo, a
+ * trilha crescendo. Nada aqui é guardado nesta tela — se a rede disser outra
+ * coisa, a rede ganha.
+ */
 export default function TelaCaso() {
   const agora = useAgora();
-  const { caso, recarregar, alertaId } = useCaso();
-  const [ocupado, setOcupado] = useState<string | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-  const [comoQuem, setComoQuem] = useState<Papel>("creas");
-
-  async function executar(nome: string, fn: () => Promise<unknown>) {
-    setOcupado(nome);
-    setErro(null);
-    try {
-      await fn();
-      await recarregar();
-    } catch (e) {
-      setErro(String(e instanceof Error ? e.message : e));
-    } finally {
-      setOcupado(null);
-    }
-  }
-
-  const aoVencer = useCallback(() => {
-    // Vencido o prazo, qualquer um pode mandar o caso ao MP. Aqui a própria
-    // tela faz isso sozinha, para mostrar que não depende de boa vontade.
-    if (!caso || caso.estado === "Escalado" || caso.estado === "Encerrado") return;
-    if (ocupado) return;
-    executar("auto", () => acoes.levarAoMp());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caso?.estado, ocupado]);
+  const { caso, alertaId } = useCaso();
 
   if (!alertaId || !caso) {
     return (
-      <div className="cartao p-6 text-sm text-[var(--texto-2)]">
-        {alertaId ? (
-          <>Lendo o caso na rede…</>
-        ) : (
-          <>
-            Nenhum caso aberto.{" "}
-            <Link href="/cruzamento" className="underline">
-              Faça o cruzamento
-            </Link>{" "}
-            para que um alerta crie o caso na Solana.
-          </>
-        )}
+      <div className="space-y-6">
+        <header className="max-w-3xl space-y-2">
+          <p className="rotulo">A conta na rede · ao vivo</p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Nada aqui é escrito por esta tela.
+          </h1>
+        </header>
+        <div className="cartao p-6 text-sm text-[var(--texto-2)]">
+          {alertaId ? (
+            <>Lendo o caso na rede…</>
+          ) : (
+            <>
+              Nenhum caso aberto ainda.{" "}
+              <Link href="/cruzamento" className="underline">
+                Faça o cruzamento
+              </Link>{" "}
+              para que um alerta crie o caso na Solana, ou emita um sinal protegido em{" "}
+              <Link href="/denuncia" className="underline">
+                /denuncia
+              </Link>
+              .
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
   const encerrado = caso.estado === "Encerrado";
   const responsavel = caso.responsavel;
-  const podeTransferir =
-    responsavel === comoQuem &&
-    (caso.estado === "Aberto" || caso.estado === "EmAtendimento");
-  const podeAceitar = caso.estado === "PendenteAceite" && caso.pendentePara === comoQuem;
-  const podeEncerrar = responsavel === comoQuem && !encerrado;
   const venceu = agora !== null && agora > caso.prazo;
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
+      <header className="max-w-3xl space-y-2">
         <p className="rotulo">
-          Registro do caso · Solana devnet ·{" "}
+          A conta na rede · ao vivo ·{" "}
           <a href={caso.linkConta} target="_blank" rel="noreferrer" className="underline">
-            ver a conta na rede
+            abrir no explorador
           </a>
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          O caso nunca fica sem responsável.
+          Nada aqui é escrito por esta tela.
         </h1>
         <p className="max-w-2xl text-sm text-[var(--texto-2)]">
-          Passar o caso adiante tem dois passos. Enquanto o outro órgão não
-          confirma que recebeu, o caso continua sendo de quem passou — e o prazo
-          continua correndo contra ele. Tudo abaixo é lido da rede, não da tela.
+          Quem age são os órgãos, cada um no{" "}
+          <Link href="/orgaos" className="underline">
+            sistema dele
+          </Link>
+          . Esta página só lê, de poucos em poucos segundos, e mostra o que está
+          gravado. Deixe-a aberta ao lado: o responsável, o prazo e a trilha mudam
+          sozinhos conforme alguém assina do outro lado.
         </p>
       </header>
-
-      <div className="cartao p-4">
-        <SeletorPrazo compacto />
-        <p className="mt-1.5 text-xs text-[var(--texto-3)]">
-          Muda o prazo que passa a valer quando um órgão confirmar que recebeu. Não
-          altera o prazo que já está correndo.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rotulo">Você é</span>
-        {PAPEIS.map((p) => (
-          <button
-            key={p}
-            onClick={() => setComoQuem(p)}
-            className={`botao !px-3 !py-1.5 text-xs ${comoQuem === p ? "botao-forte" : ""}`}
-          >
-            {PAPEL[p].sigla}
-          </button>
-        ))}
-      </div>
 
       <section
         className="cartao space-y-5 p-6"
@@ -139,7 +126,10 @@ export default function TelaCaso() {
           <div className="text-right">
             <p className="rotulo">Prazo</p>
             <div className="mt-1">
-              <Relogio prazo={caso.prazo} pausado={encerrado} aoVencer={aoVencer} />
+              {/* Sem `aoVencer`: quando o prazo zera esta tela não faz nada, ela
+                  só mostra. Quem chama a escalada são os portais dos órgãos que
+                  estão segurando o caso. */}
+              <Relogio prazo={caso.prazo} pausado={encerrado} />
             </div>
             <p className="mt-1 text-xs text-[var(--texto-2)]">
               {ESTADO_ROTULO[caso.estado]}
@@ -161,14 +151,33 @@ export default function TelaCaso() {
           </div>
         )}
 
+        {venceu && !encerrado && caso.estado !== "Escalado" && (
+          <div className="rounded-lg border border-[var(--alerta)] bg-[color-mix(in_srgb,var(--alerta)_8%,transparent)] p-4">
+            <p className="text-sm font-medium text-[var(--alerta)]">
+              O prazo venceu e a rede já aceita a escalada
+            </p>
+            <p className="mt-1 text-xs text-[var(--texto-2)]">
+              O programa passou a aceitar a chamada de{" "}
+              <strong className="text-[var(--texto)]">qualquer chave</strong> — e a
+              recusaria de todas antes deste instante. Esta tela não vai chamar: ela só
+              lê. Quem chama é o portal do órgão que está com o caso, e o resultado
+              aparece aqui em segundos.
+            </p>
+          </div>
+        )}
+
         {caso.estado === "Escalado" && (
           <div className="rounded-lg border border-[var(--perigo)] bg-[color-mix(in_srgb,var(--perigo)_10%,transparent)] p-4">
             <p className="text-sm font-medium text-[var(--perigo)]">
               O prazo venceu sem ninguém aceitar — o caso foi para o Ministério Público
             </p>
             <p className="mt-1 text-xs text-[var(--texto-2)]">
-              Qualquer pessoa pode acionar isso depois que o prazo vence. Nenhum dos
-              órgãos envolvidos consegue impedir.
+              Nenhum dos órgãos envolvidos conseguiu impedir, porque não havia nada a
+              impedir: a regra está no programa.{" "}
+              <a href="/mp" target="_blank" rel="noreferrer" className="underline">
+                No sistema da promotoria
+              </a>{" "}
+              isso aparece como entrada sem remetente.
             </p>
           </div>
         )}
@@ -191,76 +200,6 @@ export default function TelaCaso() {
             <dd className="mt-1 font-medium text-[var(--ok)]">nenhum, nem cifrado</dd>
           </div>
         </dl>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="rotulo">O que {PAPEL[comoQuem].sigla} pode fazer agora</h2>
-        {erro && (
-          <p className="cartao border-[var(--perigo)] p-3 text-xs text-[var(--perigo)]">
-            {erro}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {podeTransferir &&
-            PAPEIS.filter((p) => p !== responsavel).map((p) => (
-              <button
-                key={p}
-                className="botao"
-                disabled={Boolean(ocupado)}
-                onClick={() => executar(`t-${p}`, () => acoes.transferir(p))}
-              >
-                {ocupado === `t-${p}` ? "assinando…" : `Passar para ${PAPEL[p].sigla}`}
-              </button>
-            ))}
-          {podeAceitar && (
-            <button
-              className="botao botao-forte"
-              disabled={Boolean(ocupado)}
-              onClick={() => executar("aceitar", () => acoes.aceitar(comoQuem))}
-            >
-              {ocupado === "aceitar" ? "assinando…" : "Confirmar que recebi e assumir"}
-            </button>
-          )}
-          {podeEncerrar && (
-            <button
-              className="botao"
-              disabled={Boolean(ocupado)}
-              onClick={() => executar("encerrar", () => acoes.encerrar())}
-            >
-              {ocupado === "encerrar" ? "assinando…" : "Registrar o desfecho"}
-            </button>
-          )}
-          {!podeTransferir && !podeAceitar && !podeEncerrar && (
-            <p className="text-sm text-[var(--texto-2)]">
-              {encerrado
-                ? "Caso encerrado."
-                : `${PAPEL[comoQuem].sigla} não tem o que fazer agora — o caso está com ${responsavel ? PAPEL[responsavel].sigla : "outro órgão"}.`}
-            </p>
-          )}
-        </div>
-
-        {!encerrado && caso.estado !== "Escalado" && (
-          <div className="cartao p-4">
-            <p className="text-xs text-[var(--texto-2)]">
-              <strong className="text-[var(--texto)]">
-                Depois do prazo, qualquer pessoa pode agir.
-              </strong>{" "}
-              Não precisa ser nenhum dos órgãos envolvidos. É isso que impede que o
-              caso fique parado por conveniência de quem deveria agir.
-            </p>
-            <button
-              className="botao mt-2 !px-3 !py-1.5 text-xs"
-              disabled={Boolean(ocupado) || !venceu}
-              onClick={() => executar("mp", () => acoes.levarAoMp())}
-            >
-              {ocupado === "mp"
-                ? "assinando…"
-                : venceu
-                  ? "Mandar ao Ministério Público"
-                  : "Só depois que o prazo vencer"}
-            </button>
-          </div>
-        )}
       </section>
 
       <ContaNaRede caso={caso} />
@@ -294,7 +233,7 @@ export default function TelaCaso() {
         </ol>
         <p className="text-xs text-[var(--texto-3)]">
           Cada linha é uma transação real na Solana devnet. Clique para conferir no
-          explorador — não é preciso confiar nesta tela.
+          explorador — não é preciso confiar nesta tela, e é esse o ponto de ela existir.
         </p>
       </section>
     </div>

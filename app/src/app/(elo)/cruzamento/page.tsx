@@ -216,9 +216,22 @@ export default function TelaCruzamento() {
         )}
 
         {jaAberto && (
-          <Link href="/caso" className="botao w-full">
-            Ir para o caso →
-          </Link>
+          <div className="space-y-2">
+            {/* O caso caiu no CREAS: o lugar de continuar é o sistema dele, não
+                uma tela nossa. A conta na rede fica como o que ela é — a prova
+                crua, para deixar aberta ao lado. */}
+            <a
+              href="/creas"
+              target="_blank"
+              rel="noreferrer"
+              className="botao botao-forte w-full"
+            >
+              Ver como ele chegou no sistema do CREAS →
+            </a>
+            <Link href="/caso" className="botao w-full">
+              Acompanhar a conta na rede, ao vivo
+            </Link>
+          </div>
         )}
       </section>
 

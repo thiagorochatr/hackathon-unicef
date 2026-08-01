@@ -46,23 +46,24 @@ export default function Inicio() {
     },
     {
       n: 4,
-      titulo: "CREAS assume, com prazo",
-      descricao: "O alerta cai em um órgão com nome e um relógio começa a correr.",
-      href: "/caso",
+      titulo: "O caso aparece no CREAS, sem remetente",
+      descricao:
+        "A técnica abre o sistema dela e o caso está lá, com responsável e relógio. Ninguém o encaminhou.",
+      href: "/creas",
       feito: Boolean(caso),
     },
     {
       n: 5,
       titulo: "Passa para o Conselho Tutelar",
       descricao: "O caso continua sendo do CREAS até o Conselho confirmar.",
-      href: "/caso",
+      href: "/conselho",
       feito: caso ? caso.eventos > 1 : false,
     },
     {
       n: 6,
       titulo: "O prazo vence e ninguém aceitou",
       descricao: "O caso vai sozinho para o Ministério Público. Ninguém segura.",
-      href: "/caso",
+      href: "/mp",
       feito: caso?.estado === "Escalado",
     },
     {
