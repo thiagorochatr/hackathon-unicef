@@ -177,8 +177,28 @@ export async function POST(req: Request) {
         const compromisso = compromissoDoSinal(apelido, peso, sal);
         const anuladorBytes = paraBytes32(anulador);
         const relayer = comite();
-        await permitirEscrita(req, "registrar sinal", relayer, CUSTO.registrar_sinal);
         const prog = programa(relayer);
+
+        // O anulador vira conta, e conta que já existe faz a transação falhar
+        // com um despejo de simulação ilegível. Conferir antes permite dizer o
+        // que de fato aconteceu — que a proteção contra repetição funcionou.
+        const jaUsado = await prog.account.nullificador.fetchNullable(
+          pdaNulificador(anuladorBytes),
+        );
+        if (jaUsado) {
+          return NextResponse.json(
+            {
+              erro:
+                "Você já enviou um sinal protegido neste setor neste mês. " +
+                "É o limite que impede a mesma pessoa de repetir o envio — e ele " +
+                "funciona sem que ninguém descubra quem você é.",
+              jaEnviou: true,
+            },
+            { status: 409 },
+          );
+        }
+
+        await permitirEscrita(req, "registrar sinal", relayer, CUSTO.registrar_sinal);
 
         const instrucao = await prog.methods
           .registrarSinalCredenciado(

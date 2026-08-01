@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ESCOLA,
   LIMITE_FALTAS,
@@ -9,7 +9,13 @@ import {
   faltas,
   type Aluno,
 } from "./dados";
-import { enviarComoEscola, enviarProtegido, protocolo, type Passo } from "./enviar";
+import {
+  enviarComoEscola,
+  enviarProtegido,
+  prepararLista,
+  protocolo,
+  type Passo,
+} from "./enviar";
 
 const DIAS = Array.from({ length: 20 }, (_, i) => i + 1);
 
@@ -25,6 +31,12 @@ export default function DiarioDeClasse() {
     null,
   );
   const [erro, setErro] = useState<string | null>(null);
+
+  // A lista de credenciados demora a ser reconstruída da cadeia. Começar agora,
+  // enquanto a chamada está sendo olhada, evita a espera na hora de enviar.
+  useEffect(() => {
+    prepararLista();
+  }, []);
 
   function abrir(a: Aluno) {
     setAberto(a);

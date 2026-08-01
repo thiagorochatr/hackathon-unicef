@@ -17,6 +17,43 @@ const MUNICIPIO = 3552205;
 const SETOR = "educacao";
 const BYTE_DO_SETOR = 2;
 
+/**
+ * A lista de credenciados, buscada uma vez e reaproveitada.
+ *
+ * Ela é reconstruída lendo a cadeia, o que leva tempo na primeira vez. Deixar
+ * isso para a hora do envio fazia o professor esperar olhando para um botão —
+ * justamente no momento em que ele já hesita. Agora a busca começa quando o
+ * portal abre, enquanto ele olha a chamada.
+ */
+interface Lista {
+  grupo: { folhas: string[] } | null;
+  periodo: number;
+  erro?: string;
+}
+
+let listaEmCurso: Promise<Lista> | null = null;
+
+export function prepararLista(): void {
+  listaEmCurso ??= fetch(`/api/denuncia?setor=${SETOR}`).then(
+    (r) => r.json() as Promise<Lista>,
+  );
+}
+
+async function lista(): Promise<Lista> {
+  prepararLista();
+  const d = (await listaEmCurso) as Lista;
+  if (d?.erro) {
+    listaEmCurso = null;
+    throw new Error(d.erro);
+  }
+  return d;
+}
+
+/** Depois de credenciar alguém a lista mudou, então a guardada não serve mais. */
+function esquecerLista(): void {
+  listaEmCurso = null;
+}
+
 export interface Passo {
   texto: string;
   detalhe?: string;
@@ -58,9 +95,7 @@ export async function enviarProtegido(
   avisar({ texto: "Preparando sua credencial neste aparelho" });
   const identidade = await obterIdentidade();
 
-  const estado = await (await fetch(`/api/denuncia?setor=${SETOR}`)).json();
-  if (estado.erro) throw new Error(estado.erro);
-
+  const estado = await lista();
   let grupo = estado.grupo;
   if (!grupo?.folhas?.includes(identidade.compromisso)) {
     avisar({
@@ -79,6 +114,7 @@ export async function enviarProtegido(
     const d = await r.json();
     if (d.erro) throw new Error(d.erro);
     grupo = d.grupo;
+    esquecerLista();
   }
 
   avisar({
@@ -86,6 +122,8 @@ export async function enviarProtegido(
     detalhe: "O identificador não sai deste aparelho.",
   });
   const apelido = await obterApelido(CRIANCA_FICTICIA.identificador);
+
+  if (!grupo) throw new Error("a lista de credenciados do setor não está disponível");
 
   avisar({ texto: "Gerando a prova aqui, neste computador" });
   const prova = await gerarProva(

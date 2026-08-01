@@ -109,8 +109,18 @@ const global_ = globalThis as unknown as {
 global_.__folhasPorTransacao ??= new Map();
 const lidas = global_.__folhasPorTransacao;
 
-/** Lê as folhas dos eventos de credenciamento, na ordem em que entraram. */
-async function folhasDaRede(endereco: PublicKey): Promise<string[]> {
+/**
+ * Lê as folhas dos eventos de credenciamento, na ordem em que entraram.
+ *
+ * `quantasEsperar` vem da conta do grupo e permite parar cedo. Faz diferença
+ * grande: **todo sinal protegido também referencia o grupo**, então o histórico
+ * cresce a cada envio, enquanto o número de folhas só cresce a cada
+ * credenciamento. Sem isso, a leitura ficava mais lenta a cada denúncia.
+ */
+async function folhasDaRede(
+  endereco: PublicKey,
+  quantasEsperar: number,
+): Promise<string[]> {
   const prog = programa(comite());
   const rede = conexao();
   const assinaturas = await rede.getSignaturesForAddress(
@@ -128,6 +138,10 @@ async function folhasDaRede(endereco: PublicKey): Promise<string[]> {
     .map((s) => s.signature);
 
   for (const assinatura of emOrdem) {
+    // Já temos todas: o que vier depois não acrescenta folha nenhuma.
+    const ate_agora = emOrdem.flatMap((s) => lidas.get(s) ?? []).length;
+    if (quantasEsperar > 0 && ate_agora >= quantasEsperar) break;
+
     if (lidas.has(assinatura)) continue;
     const tx = await buscarTransacao(rede, assinatura);
 
@@ -159,7 +173,7 @@ export async function lerGrupo(setor: Setor): Promise<EstadoGrupo | null> {
   const conta = await prog.account.grupoCredenciados.fetchNullable(endereco);
   if (!conta) return null;
 
-  const folhas = await folhasDaRede(endereco);
+  const folhas = await folhasDaRede(endereco, conta.membros);
   const raizRefeita = folhas.length ? await raizDe(folhas) : null;
 
   return {
