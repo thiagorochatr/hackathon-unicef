@@ -75,6 +75,62 @@ describe("denúncia protegida", () => {
   let identidades: any[] = [];
   let grupo: any;
   let gerarProva: any;
+  let todasAsFolhas: string[] = [];
+
+  /** Lê as folhas credenciadas direto dos eventos, na ordem em que entraram. */
+  async function lerFolhas(endereco: PublicKey): Promise<string[]> {
+    const assinaturas = await provider.connection.getSignaturesForAddress(
+      endereco,
+      { limit: 200 },
+      "confirmed",
+    );
+    // Uma de cada vez, espaçadas: o pedido em lote estoura o limite da devnet
+    // de uma vez só, enquanto chamadas separadas deixam a biblioteca reagir ao
+    // "requisições demais" sozinha. Uma folha perdida mudaria a raiz em silêncio.
+    const emOrdem = assinaturas
+      .slice()
+      .reverse()
+      .filter((s) => !s.err)
+      .map((s) => s.signature);
+
+    const folhas: string[] = [];
+    const txs: anchor.web3.VersionedTransactionResponse[] = [];
+    for (const assinatura of emOrdem) {
+      let tx = null;
+      for (let tentativa = 0; tentativa < 4 && !tx; tentativa += 1) {
+        try {
+          tx = await provider.connection.getTransaction(assinatura, {
+            commitment: "confirmed",
+            maxSupportedTransactionVersion: 0,
+          });
+        } catch {
+          // a devnet limita requisições; a espera abaixo resolve
+        }
+        if (!tx) await dormir(500 * (tentativa + 1));
+      }
+      if (!tx) throw new Error(`a rede não devolveu a transação ${assinatura}`);
+      txs.push(tx);
+      await dormir(120);
+    }
+
+    for (const tx of txs) {
+      for (const linha of tx.meta?.logMessages ?? []) {
+        const dado = linha.match(/^Program data: (.+)$/)?.[1];
+        if (!dado) continue;
+        let evento;
+        try {
+          evento = program.coder.events.decode(dado);
+        } catch {
+          continue;
+        }
+        if (evento?.name !== "eventoCredenciados") continue;
+        for (const f of evento.data.folhas as number[][]) {
+          folhas.push(BigInt("0x" + Buffer.from(f).toString("hex")).toString());
+        }
+      }
+    }
+    return folhas;
+  }
 
   /** Gera a prova como o navegador do profissional geraria. */
   async function provar(quem: any, alertaId: Buffer, periodo = PERIODO) {
@@ -162,31 +218,71 @@ describe("denúncia protegida", () => {
       { length: 8 },
       (_, i) => new Identity(`profissional-ficticio-${i}`),
     );
-    grupo = new Group(identidades.map((i) => i.commitment));
-    const raiz = Array.from(paraBytes32(grupo.root.toString()));
-
     const enderecoGrupo = pdaGrupo(pid, MUNICIPIO);
-    const jaExiste = await program.account.grupoCredenciados.fetchNullable(enderecoGrupo);
-    if (!jaExiste) {
+    if (!(await program.account.grupoCredenciados.fetchNullable(enderecoGrupo))) {
       await program.methods
-        .registrarGrupo(MUNICIPIO, raiz, creas.publicKey, identidades.length)
+        .registrarGrupo(MUNICIPIO, creas.publicKey)
         .accountsPartial({
           config,
           grupo: enderecoGrupo,
           admin: provider.wallet.publicKey,
         })
         .rpc();
-    } else {
-      await program.methods
-        .atualizarRaizGrupo(raiz, identidades.length)
-        .accountsPartial({
-          config,
-          grupo: enderecoGrupo,
-          admin: provider.wallet.publicKey,
-        })
-        .rpc();
-      // A chave do responsável muda a cada execução do teste; releitura abaixo.
     }
+
+    // A árvore é acumulativa e a devnet guarda estado entre execuções: só entram
+    // os que ainda não estão, e a raiz publicada precisa cobrir **todas** as
+    // folhas já credenciadas, não só as desta rodada.
+    const jaNaRede = await lerFolhas(enderecoGrupo);
+    const novas = identidades
+      .map((i) => i.commitment.toString())
+      .filter((c) => !jaNaRede.includes(c));
+
+    todasAsFolhas = [...jaNaRede, ...novas];
+    grupo = new Group(todasAsFolhas.map((f) => BigInt(f)));
+
+    // Republica também quando a raiz na rede não corresponde às folhas: pode
+    // ter sobrado estado de uma execução que publicou raiz de um conjunto menor.
+    const naRede = await program.account.grupoCredenciados.fetch(enderecoGrupo);
+    const raizCerta = paraBytes32(grupo.root.toString());
+    const desencontrada =
+      Buffer.from(naRede.raiz as number[]).toString("hex") !== raizCerta.toString("hex");
+
+    if (novas.length || desencontrada) {
+      await program.methods
+        .adicionarCredenciados(
+          novas.map((c) => Array.from(paraBytes32(c))),
+          Array.from(raizCerta),
+        )
+        .accountsPartial({
+          config,
+          grupo: enderecoGrupo,
+          credenciador: provider.wallet.publicKey,
+        })
+        .rpc();
+    }
+  });
+
+  it("as folhas credenciadas vão para a cadeia, e a árvore se refaz a partir delas", async function () {
+    this.timeout(120_000);
+    const { Group } = await import("@semaphore-protocol/group");
+
+    const endereco = pdaGrupo(pid, MUNICIPIO);
+    const folhas = await lerFolhas(endereco);
+    assert.deepEqual(
+      folhas,
+      todasAsFolhas,
+      "as folhas lidas da rede não são as que credenciamos",
+    );
+
+    const refeita = new Group(folhas.map((f) => BigInt(f)));
+    const naRede = await program.account.grupoCredenciados.fetch(endereco);
+    assert.equal(
+      Buffer.from(naRede.raiz as number[]).toString("hex"),
+      paraBytes32(refeita.root.toString()).toString("hex"),
+      "a raiz publicada não corresponde às folhas credenciadas",
+    );
+    console.log(`      → árvore refeita a partir de ${folhas.length} folhas lidas da rede`);
   });
 
   it("uma prova válida abre o caso — e ninguém assinou por instituição", async function () {

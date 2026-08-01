@@ -137,17 +137,16 @@ pub mod custodia {
         )
     }
 
-    /// Cadastra o grupo de profissionais credenciados de um município.
+    /// Cria o grupo de profissionais credenciados de um município, vazio.
     ///
-    /// Quem publica a raiz é o administrador. Numa implantação de verdade isso
-    /// sai do sistema de pessoal de cada instituição — está declarado como
-    /// simplificação de protótipo.
+    /// Nasce sem ninguém dentro de propósito: todo credenciado entra por
+    /// `adicionar_credenciados`, e é lá que a folha dele fica registrada em
+    /// evento. Se o grupo pudesse nascer já cheio, haveria um conjunto inicial
+    /// que ninguém conseguiria conferir.
     pub fn registrar_grupo(
         ctx: Context<RegistrarGrupo>,
         municipio_ibge: u32,
-        raiz: [u8; 32],
         responsavel_padrao: Pubkey,
-        membros: u32,
     ) -> Result<()> {
         require!(
             responsavel_padrao != Pubkey::default(),
@@ -155,38 +154,61 @@ pub mod custodia {
         );
         let grupo = &mut ctx.accounts.grupo;
         grupo.municipio_ibge = municipio_ibge;
-        grupo.raiz = raiz;
+        grupo.raiz = [0u8; 32];
         grupo.responsavel_padrao = responsavel_padrao;
-        grupo.membros = membros;
+        grupo.membros = 0;
         grupo.bump = ctx.bumps.grupo;
-
-        emit!(EventoGrupo {
-            municipio_ibge,
-            raiz,
-            membros,
-            ts: Clock::get()?.unix_timestamp,
-        });
         Ok(())
     }
 
-    /// Move a raiz quando entra ou sai credenciado.
+    /// Credencia profissionais e move a raiz da árvore.
     ///
-    /// O evento carrega a raiz nova junto: é isso que permite a qualquer pessoa
-    /// refazer a árvore do zero e conferir que ninguém foi inserido às
-    /// escondidas para poder denunciar sem ser da rede.
-    pub fn atualizar_raiz_grupo(
+    /// **O evento carrega as folhas inseridas, uma a uma.** É isso que permite
+    /// a qualquer pessoa refazer a árvore inteira lendo só a cadeia e conferir
+    /// que a raiz publicada bate com as folhas — ou seja, que ninguém foi
+    /// enfiado no grupo às escondidas para poder denunciar sem ser da rede.
+    ///
+    /// Limitação declarada: o programa **não** recalcula a árvore, porque isso
+    /// custaria uma travessia de Poseidon por inserção. Ele registra raiz e
+    /// folhas, e a conferência é de quem quiser fazer. Recalcular on-chain está
+    /// no roteiro.
+    /// Uma lista de folhas **vazia** é legítima e quer dizer "republicar a raiz
+    /// sobre quem já está credenciado". Serve para consertar o caso em que um
+    /// cliente publicou uma raiz que não correspondia às folhas. Não abre
+    /// brecha nova: quem administra já escolhe a raiz de qualquer jeito, e a
+    /// conferência de quem audita continua a mesma — refazer a árvore a partir
+    /// de todos os eventos e comparar com a raiz publicada.
+    pub fn adicionar_credenciados(
         ctx: Context<AtualizarGrupo>,
-        raiz: [u8; 32],
-        membros: u32,
+        folhas: Vec<[u8; 32]>,
+        nova_raiz: [u8; 32],
     ) -> Result<()> {
-        let grupo = &mut ctx.accounts.grupo;
-        grupo.raiz = raiz;
-        grupo.membros = membros;
+        require!(folhas.len() <= 32, ErroCustodia::CredenciamentoLongoDemais);
 
-        emit!(EventoGrupo {
+        // Quem credencia é o órgão responsável do município — o CREAS, que é o
+        // ponto técnico da rede local — ou quem administra o sistema. Não é o
+        // comitê que faz o cruzamento: manter os dois papéis separados é de
+        // propósito, para que quem cruza os sinais não escolha também quem pode
+        // denunciar.
+        let quem = ctx.accounts.credenciador.key();
+        require!(
+            quem == ctx.accounts.config.admin
+                || quem == ctx.accounts.grupo.responsavel_padrao,
+            ErroCustodia::NaoEhCredenciador
+        );
+
+        let grupo = &mut ctx.accounts.grupo;
+        grupo.raiz = nova_raiz;
+        grupo.membros = grupo
+            .membros
+            .checked_add(folhas.len() as u32)
+            .ok_or(ErroCustodia::TrilhaCheia)?;
+
+        emit!(EventoCredenciados {
             municipio_ibge: grupo.municipio_ibge,
-            raiz,
-            membros,
+            folhas,
+            raiz: nova_raiz,
+            membros: grupo.membros,
             ts: Clock::get()?.unix_timestamp,
         });
         Ok(())
@@ -698,7 +720,7 @@ pub struct RegistrarGrupo<'info> {
 
 #[derive(Accounts)]
 pub struct AtualizarGrupo<'info> {
-    #[account(seeds = [b"config"], bump = config.bump, has_one = admin)]
+    #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Config>,
     #[account(
         mut,
@@ -706,7 +728,9 @@ pub struct AtualizarGrupo<'info> {
         bump = grupo.bump
     )]
     pub grupo: Account<'info, GrupoCredenciados>,
-    pub admin: Signer<'info>,
+    /// Conferido dentro da instrução: ou quem administra, ou o órgão
+    /// responsável do município.
+    pub credenciador: Signer<'info>,
 }
 
 /// Ato que só o custodiante corrente pode praticar.
@@ -789,11 +813,13 @@ pub struct EventoCustodia {
     pub ts: i64,
 }
 
-/// Toda mudança na árvore de credenciados vira evento com a raiz nova. É o que
-/// permite refazer a árvore do zero e conferir que ninguém entrou escondido.
+/// Toda entrada na árvore de credenciados vira evento **com as folhas**. É o
+/// que permite refazer a árvore do zero, só lendo a cadeia, e conferir que a
+/// raiz publicada corresponde exatamente a quem foi credenciado.
 #[event]
-pub struct EventoGrupo {
+pub struct EventoCredenciados {
     pub municipio_ibge: u32,
+    pub folhas: Vec<[u8; 32]>,
     pub raiz: [u8; 32],
     pub membros: u32,
     pub ts: i64,
@@ -833,4 +859,8 @@ pub enum ErroCustodia {
     ProvaMalFormada,
     #[msg("A prova não confere")]
     ProvaInvalida,
+    #[msg("Credenciamento com folhas demais para uma transação")]
+    CredenciamentoLongoDemais,
+    #[msg("Quem assina não pode credenciar neste município")]
+    NaoEhCredenciador,
 }

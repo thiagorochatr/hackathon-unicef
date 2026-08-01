@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/custodia.json`.
  */
 export type Custodia = {
-  "address": "FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E",
+  "address": "EasKv552hhhCGZEV6KS9VUENEVGEgwhMxV59W9xoRc7h",
   "metadata": {
     "name": "custodia",
     "version": "0.1.0",
@@ -121,6 +121,163 @@ export type Custodia = {
       ]
     },
     {
+      "name": "abrirCasoPorDenuncia",
+      "docs": [
+        "Abre o caso a partir de uma **denúncia protegida**.",
+        "",
+        "Repare no que não existe aqui: nenhuma assinatura de instituição. Quem",
+        "autoriza não é ninguém — é a prova, conferida pela própria rede. O único",
+        "signatário é quem paga a taxa, e ele não sabe de quem é a prova que está",
+        "repassando.",
+        "",
+        "Esse é o ponto: o profissional que teme retaliação consegue fazer o caso",
+        "existir, com dono e prazo, sem se identificar para ninguém — nem para",
+        "nós."
+      ],
+      "discriminator": [
+        141,
+        201,
+        49,
+        114,
+        91,
+        201,
+        188,
+        123
+      ],
+      "accounts": [
+        {
+          "name": "caso",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  115,
+                  111
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "alertaId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "grupo",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  117,
+                  112,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grupo.municipioIbge",
+                "account": "grupoCredenciados"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nulificador",
+          "docs": [
+            "Falha na criação se o anulador já tiver sido usado. É a proteção contra",
+            "denúncia repetida, e ela não precisa saber quem é ninguém."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  117,
+                  108,
+                  105,
+                  102,
+                  105,
+                  99,
+                  97,
+                  100,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "anulador"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pagador",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "alertaId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "prova",
+          "type": {
+            "array": [
+              "u8",
+              256
+            ]
+          }
+        },
+        {
+          "name": "anulador",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "periodo",
+          "type": "u32"
+        },
+        {
+          "name": "agenteHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "prazoSeg",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "aceitar",
       "docs": [
         "Segunda fase do repasse. Só o destino nomeado pode aceitar, e é o aceite",
@@ -174,6 +331,111 @@ export type Custodia = {
         },
         {
           "name": "agenteHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "adicionarCredenciados",
+      "docs": [
+        "Credencia profissionais e move a raiz da árvore.",
+        "",
+        "**O evento carrega as folhas inseridas, uma a uma.** É isso que permite",
+        "a qualquer pessoa refazer a árvore inteira lendo só a cadeia e conferir",
+        "que a raiz publicada bate com as folhas — ou seja, que ninguém foi",
+        "enfiado no grupo às escondidas para poder denunciar sem ser da rede.",
+        "",
+        "Limitação declarada: o programa **não** recalcula a árvore, porque isso",
+        "custaria uma travessia de Poseidon por inserção. Ele registra raiz e",
+        "folhas, e a conferência é de quem quiser fazer. Recalcular on-chain está",
+        "no roteiro.",
+        "Uma lista de folhas **vazia** é legítima e quer dizer \"republicar a raiz",
+        "sobre quem já está credenciado\". Serve para consertar o caso em que um",
+        "cliente publicou uma raiz que não correspondia às folhas. Não abre",
+        "brecha nova: quem administra já escolhe a raiz de qualquer jeito, e a",
+        "conferência de quem audita continua a mesma — refazer a árvore a partir",
+        "de todos os eventos e comparar com a raiz publicada."
+      ],
+      "discriminator": [
+        68,
+        44,
+        202,
+        237,
+        215,
+        255,
+        245,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "grupo",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  117,
+                  112,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grupo.municipioIbge",
+                "account": "grupoCredenciados"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credenciador",
+          "docs": [
+            "Conferido dentro da instrução: ou quem administra, ou o órgão",
+            "responsável do município."
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "folhas",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "novaRaiz",
           "type": {
             "array": [
               "u8",
@@ -508,6 +770,91 @@ export type Custodia = {
       ]
     },
     {
+      "name": "registrarGrupo",
+      "docs": [
+        "Cria o grupo de profissionais credenciados de um município, vazio.",
+        "",
+        "Nasce sem ninguém dentro de propósito: todo credenciado entra por",
+        "`adicionar_credenciados`, e é lá que a folha dele fica registrada em",
+        "evento. Se o grupo pudesse nascer já cheio, haveria um conjunto inicial",
+        "que ninguém conseguiria conferir."
+      ],
+      "discriminator": [
+        216,
+        0,
+        114,
+        113,
+        58,
+        128,
+        94,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "grupo",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  117,
+                  112,
+                  111
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "municipioIbge"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "municipioIbge",
+          "type": "u32"
+        },
+        {
+          "name": "responsavelPadrao",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "registrarInstituicao",
       "discriminator": [
         48,
@@ -696,6 +1043,19 @@ export type Custodia = {
       ]
     },
     {
+      "name": "grupoCredenciados",
+      "discriminator": [
+        175,
+        74,
+        245,
+        34,
+        103,
+        30,
+        30,
+        57
+      ]
+    },
+    {
       "name": "instituicao",
       "discriminator": [
         35,
@@ -706,6 +1066,19 @@ export type Custodia = {
         176,
         220,
         35
+      ]
+    },
+    {
+      "name": "nullificador",
+      "discriminator": [
+        134,
+        218,
+        231,
+        188,
+        223,
+        17,
+        172,
+        232
       ]
     }
   ],
@@ -721,6 +1094,19 @@ export type Custodia = {
         83,
         148,
         129
+      ]
+    },
+    {
+      "name": "eventoCredenciados",
+      "discriminator": [
+        75,
+        201,
+        252,
+        148,
+        161,
+        34,
+        135,
+        172
       ]
     },
     {
@@ -787,6 +1173,26 @@ export type Custodia = {
       "code": 6009,
       "name": "trilhaCheia",
       "msg": "Trilha de eventos cheia"
+    },
+    {
+      "code": 6010,
+      "name": "provaMalFormada",
+      "msg": "A prova não tem o formato esperado"
+    },
+    {
+      "code": 6011,
+      "name": "provaInvalida",
+      "msg": "A prova não confere"
+    },
+    {
+      "code": 6012,
+      "name": "credenciamentoLongoDemais",
+      "msg": "Credenciamento com folhas demais para uma transação"
+    },
+    {
+      "code": 6013,
+      "name": "naoEhCredenciador",
+      "msg": "Quem assina não pode credenciar neste município"
     }
   ],
   "types": [
@@ -895,6 +1301,14 @@ export type Custodia = {
             "type": "u16"
           },
           {
+            "name": "origem",
+            "type": {
+              "defined": {
+                "name": "origem"
+              }
+            }
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -974,6 +1388,51 @@ export type Custodia = {
       }
     },
     {
+      "name": "eventoCredenciados",
+      "docs": [
+        "Toda entrada na árvore de credenciados vira evento **com as folhas**. É o",
+        "que permite refazer a árvore do zero, só lendo a cadeia, e conferir que a",
+        "raiz publicada corresponde exatamente a quem foi credenciado."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "municipioIbge",
+            "type": "u32"
+          },
+          {
+            "name": "folhas",
+            "type": {
+              "vec": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "raiz",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "membros",
+            "type": "u32"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "eventoCustodia",
       "type": {
         "kind": "struct",
@@ -1030,6 +1489,51 @@ export type Custodia = {
       }
     },
     {
+      "name": "grupoCredenciados",
+      "docs": [
+        "O grupo de profissionais credenciados de um município.",
+        "",
+        "Não guarda nome de ninguém: só a raiz da árvore. Saber a raiz não permite",
+        "descobrir quem está dentro, e é contra ela que a prova é conferida."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "municipioIbge",
+            "type": "u32"
+          },
+          {
+            "name": "raiz",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "responsavelPadrao",
+            "docs": [
+              "Para quem vai o caso aberto por denúncia — CREAS ou Conselho Tutelar."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "membros",
+            "docs": [
+              "Quantos credenciados, só para o painel. Quanto maior, melhor o anonimato."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "instituicao",
       "type": {
         "kind": "struct",
@@ -1066,6 +1570,48 @@ export type Custodia = {
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nullificador",
+      "docs": [
+        "Marca que um anulador já foi usado.",
+        "",
+        "A conta em si não guarda nada de útil — o que importa é ela **existir**. O",
+        "endereço dela é derivado do anulador, então criar duas vezes é impossível, e",
+        "é isso que impede a mesma pessoa de denunciar repetidamente no mesmo período",
+        "sem que ninguém descubra quem ela é."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "usadoEm",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "origem",
+      "docs": [
+        "Como o caso veio ao mundo. Muda quem assinou a abertura — e, na denúncia",
+        "protegida, a resposta é \"ninguém\"."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "cruzamento"
+          },
+          {
+            "name": "denunciaProtegida"
           }
         ]
       }

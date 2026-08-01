@@ -119,6 +119,15 @@ export const acoes = {
     definir({ ...ler(), prazoSeg: seg });
   },
 
+  /**
+   * Aponta a demonstração para um caso já aberto. Usado pela denúncia
+   * protegida, onde quem abre o caso é a prova e não o cruzamento — as telas de
+   * custódia daqui para a frente funcionam igual.
+   */
+  definirAlerta(alertaId: string) {
+    definir({ ...ler(), alertaId });
+  },
+
   /** Pode ser acionado por qualquer chave depois do prazo. */
   levarAoMp() {
     return chamar({ acao: "escalar", alertaId: ler().alertaId });

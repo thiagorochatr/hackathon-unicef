@@ -79,8 +79,20 @@ export default function TelaEstado() {
             },
             {
               t: "Denúncia protegida por prova que não revela",
+              e: "funciona de verdade",
+              d: "Um profissional credenciado abre um caso provando que está na lista do município, sem revelar qual deles é. A prova nasce no navegador dele, em menos de um segundo, e quem confere é o programa na rede — não um servidor nosso. A transação que abre o caso tem um signatário só, que é quem pagou a taxa: nenhum órgão assinou, e o denunciante também não.",
+              ok: true,
+            },
+            {
+              t: "Lista de credenciados conferível por qualquer pessoa",
+              e: "funciona de verdade",
+              d: "Cada credenciamento grava na rede quem entrou. Dá para refazer a lista inteira lendo só a cadeia e conferir que ela corresponde ao resumo publicado — ou seja, que ninguém foi incluído às escondidas para poder denunciar sem ser da rede.",
+              ok: true,
+            },
+            {
+              t: "Grupo grande o bastante para esconder alguém",
               e: "no plano",
-              d: "É a parte que ataca a causa mais citada da subnotificação: o medo de quem denuncia.",
+              d: "Na demonstração são poucas pessoas. Anonimato de verdade precisa de milhares: criptografia não conserta grupo pequeno. E quem repassa a denúncia enxerga o endereço de rede de quem enviou — proteger isso exige uma camada a mais.",
               ok: false,
             },
           ].map((i) => (

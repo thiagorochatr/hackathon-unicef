@@ -43,6 +43,12 @@ export default function RootLayout({
               >
                 Cruzamento
               </Link>
+              <Link
+                href="/denuncia"
+                className="rounded px-2 py-1 hover:bg-[var(--fundo-3)]"
+              >
+                Denúncia protegida
+              </Link>
               <Link href="/caso" className="rounded px-2 py-1 hover:bg-[var(--fundo-3)]">
                 Custódia
               </Link>

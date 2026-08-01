@@ -26,7 +26,9 @@ horários.
 | Chave repartida entre órgãos | ainda não — a chave do comitê existe inteira em um lugar só |
 | Comparação dentro do envelope | ainda não — hoje o comitê descobre quantos sinais coincidiram |
 | Marcar presença de cada órgão | **real** — um selo por período gravado na Solana; a falta dele vira alerta |
-| Denúncia protegida (ZK) | ainda não — é a próxima parte do plano |
+| Denúncia protegida (ZK) | **real** — prova Semaphore gerada no navegador em ~0,6 s e conferida on-chain por 117 mil unidades de computação |
+| Lista de credenciados conferível | **real** — cada credenciamento vai a evento; qualquer pessoa refaz a árvore lendo a cadeia |
+| Grupo grande o bastante para esconder alguém | ainda não — na demonstração são poucas pessoas |
 
 Programa na devnet: [`FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E`](https://explorer.solana.com/address/FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E?cluster=devnet)
 
@@ -42,6 +44,23 @@ src/lib/fhe/orgao.ts          fecha envelopes usando só a chave pública
 src/lib/fhe/noDeCruzamento.ts soma envelopes; não importa `comite` em lugar nenhum
 src/lib/pseudonimo.ts         apelido da criança via HMAC-SHA256 com chave
 ```
+
+E, do lado da denúncia protegida:
+
+```
+programs/custodia/src/zk.rs                 confere a prova dentro da rede
+programs/custodia/src/chave_verificacao.rs  chave da cerimônia pública do Semaphore
+app/src/lib/zk/prova.ts                     gera a prova no navegador de quem denuncia
+scripts/zk/formato.ts                       converte a prova para o formato da cadeia
+```
+
+A prova tem zero-knowledge perfeito: é estatisticamente independente de quem a produziu.
+Um computador quântico daqui a cinquenta anos olhando uma prova de hoje não aprende nada
+sobre o denunciante — isso não é "difícil de quebrar", é impossível. O que o quântico
+quebraria é a solidez, ou seja, forjar provas novas. Problema para frente, não para trás.
+
+A chave de verificação vem da **cerimônia pública do Semaphore**, e não de uma cerimônia
+nossa. Ninguém precisa confiar em quem gerou aqueles parâmetros, porque não fomos nós.
 
 Cada envelope tem cerca de 118 mil letras. A tela do cruzamento mostra a mesma
 soma aberta de dois jeitos: com a chave certa dá o número de sinais que
@@ -149,6 +168,9 @@ app/                           aplicação Next.js
   src/app/api/custodia/        rota que assina as transações
   src/app/api/cruzamento/      rota que cifra, soma e avalia
   src/app/api/painel/          rota que grava e lê a presença dos órgãos
+  src/app/api/denuncia/        credencia profissionais e repassa a denúncia protegida
+  src/lib/zk/                  identidade, prova no navegador e leitura da lista
+  public/zk/                   artefatos do circuito Semaphore, servidos por nós
   src/app/solucao/             a solução completa explicada
 keys/                          chaves dos órgãos — FORA DO GIT
 ```
