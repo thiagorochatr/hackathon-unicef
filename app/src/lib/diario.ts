@@ -40,7 +40,7 @@ const SUSPEITO = /[A-Za-z0-9+/=_-]{24,}/;
 /** Quantos eventos ficam guardados. O suficiente para uma apresentação inteira. */
 const CAPACIDADE = 500;
 
-export type Camada = "fha" | "zk" | "oprf" | "cadeia" | "app";
+export type Camada = "fhe" | "zk" | "oprf" | "cadeia" | "app";
 
 export interface Evento {
   id: number;

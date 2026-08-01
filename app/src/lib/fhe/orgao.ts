@@ -53,7 +53,7 @@ export async function cifrarComoOrgao(valor: number): Promise<string> {
   const b64 = fechado.save();
   fechado.delete();
 
-  registrar("fha", "envelope lacrado", {
+  registrar("fhe", "envelope lacrado", {
     tamanho: `${b64.length.toLocaleString("pt-BR")} letras`,
     "chave usada": "pública — não abre nada",
     "peso dentro": "cifrado, invisível de fora",

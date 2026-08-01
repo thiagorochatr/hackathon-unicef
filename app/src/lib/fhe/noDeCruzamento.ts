@@ -47,7 +47,7 @@ export function receber(
   atuais.push({ setor, cifraB64, recebidoEm: Date.now(), protegido });
   recebidos.set(apelido, atuais);
 
-  registrar("fha", "envelope recebido pelo nó", {
+  registrar("fhe", "envelope recebido pelo nó", {
     setor,
     origem: protegido ? "profissional protegido" : "sistema do órgão",
     "envelopes agora": atuais.length,
@@ -80,7 +80,7 @@ async function somar(apelido: string) {
     parcela.delete();
   }
 
-  registrar("fha", "soma feita às cegas", {
+  registrar("fhe", "soma feita às cegas", {
     parcelas: envelopes.length,
     setores: envelopes.map((e) => e.setor).join(" + "),
     "chave secreta usada": "nenhuma",
@@ -155,7 +155,7 @@ export async function avaliarLimiar(
   soma.delete();
   relin.delete();
 
-  registrar("fha", "comparação com o limite, dentro do envelope", {
+  registrar("fhe", "comparação com o limite, dentro do envelope", {
     conta: `r · s · (s−1), limite ${limiar}`,
     "fator de máscara": "sorteado agora",
     resultado: `${b64.length.toLocaleString("pt-BR")} letras, ainda fechado`,

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface Evento {
   id: number;
   ts: number;
-  camada: "fha" | "zk" | "oprf" | "cadeia" | "app";
+  camada: "fhe" | "zk" | "oprf" | "cadeia" | "app";
   acao: string;
   detalhes?: Record<string, string | number>;
   assinatura?: string;
@@ -16,8 +16,8 @@ const CAMADA: Record<
   Evento["camada"],
   { nome: string; cor: string; oQueProva: string }
 > = {
-  fha: {
-    nome: "FHA",
+  fhe: {
+    nome: "FHE",
     cor: "var(--c-saude)",
     oQueProva: "contas feitas sobre envelopes fechados",
   },

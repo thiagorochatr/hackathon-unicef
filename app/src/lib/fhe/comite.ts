@@ -110,7 +110,7 @@ export async function avaliarVeredito(
   const aberto = await (await chaves()).abrir(vereditoB64);
   const alerta = aberto !== 0;
 
-  registrar("fha", "comitê abriu o veredito", {
+  registrar("fhe", "comitê abriu o veredito", {
     "o que ele aprendeu": alerta ? "passou do limite" : "não passou",
     "em bits": 1,
     "contagem de sinais": "não — a máscara esconde",
@@ -125,7 +125,7 @@ export async function avaliarVeredito(
  */
 export async function abrirComChaveErrada(cifraB64: string): Promise<number> {
   const valor = (await chaves()).abrirComOutraChave(cifraB64);
-  registrar("fha", "mesma coisa, aberta com outra chave", {
+  registrar("fhe", "mesma coisa, aberta com outra chave", {
     resultado: "número sem sentido",
     "prova que": "o sigilo não depende de boa vontade",
   });
