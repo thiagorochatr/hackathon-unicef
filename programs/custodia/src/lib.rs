@@ -238,6 +238,45 @@ pub mod custodia {
         Ok(())
     }
 
+    /// Registra que um órgão emitiu um sinal.
+    ///
+    /// Existe para fechar o modo de falha número um da nossa própria lista: *o
+    /// encaminhamento não deixa rastro; sai de A e ninguém prova depois*. Sem
+    /// isto, o aviso protegido era demonstrável e o institucional não — o
+    /// contrário do razoável, já que a instituição tem **dever legal** de
+    /// notificar e precisa poder provar que cumpriu. Ou ser cobrada por não ter.
+    ///
+    /// Não cria conta: o registro é o próprio evento, assinado pelo órgão. Custa
+    /// uma taxa de assinatura e nada de aluguel.
+    ///
+    /// O compromisso leva sal, como o do sinal protegido, e pela mesma razão:
+    /// sem ele o valor se repetiria para a mesma criança e viraria um
+    /// identificador dela gravado para sempre.
+    pub fn registrar_sinal_institucional(
+        ctx: Context<RegistrarSinalInstitucional>,
+        compromisso: [u8; 32],
+        peso: u8,
+    ) -> Result<()> {
+        require!(peso >= 1 && peso <= 2, ErroCustodia::PesoInvalido);
+        let inst = &ctx.accounts.instituicao;
+        require!(
+            matches!(
+                inst.tipo,
+                TipoInstituicao::Ubs | TipoInstituicao::Escola | TipoInstituicao::Cras
+            ),
+            ErroCustodia::NaoEmiteSinal
+        );
+
+        emit!(EventoSinalInstitucional {
+            instituicao: inst.key(),
+            tipo: inst.tipo,
+            peso,
+            compromisso,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
     /// Registra que o comitê abriu um veredito.
     ///
     /// O comitê tem a chave, e por isso é a parte em que mais se pede confiança.
@@ -818,6 +857,19 @@ pub struct AtualizarGrupo<'info> {
 }
 
 #[derive(Accounts)]
+pub struct RegistrarSinalInstitucional<'info> {
+    /// A derivação a partir de `autoridade` impede um órgão de usar o cadastro
+    /// de outro. Quem assina é o próprio órgão, e é isso que dá valor ao rastro.
+    #[account(
+        seeds = [b"inst", autoridade.key().as_ref()],
+        bump = instituicao.bump
+    )]
+    pub instituicao: Account<'info, Instituicao>,
+    #[account(mut)]
+    pub autoridade: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct RegistrarAbertura<'info> {
     #[account(
         init_if_needed,
@@ -951,6 +1003,19 @@ pub struct EventoSinalCredenciado {
     pub ts: i64,
 }
 
+/// Cada sinal emitido por um órgão vira evento assinado por ele. É o que permite
+/// provar depois que a unidade avisou — e ver quando ela não avisou.
+///
+/// Não diz sobre qual criança: o compromisso leva sal e muda a cada sinal.
+#[event]
+pub struct EventoSinalInstitucional {
+    pub instituicao: Pubkey,
+    pub tipo: TipoInstituicao,
+    pub peso: u8,
+    pub compromisso: [u8; 32],
+    pub ts: i64,
+}
+
 /// Cada abertura de veredito vira evento. Somado ao contador, permite conferir
 /// que o número na conta corresponde ao que de fato aconteceu.
 #[event]
@@ -1002,4 +1067,6 @@ pub enum ErroCustodia {
     NaoEhCredenciador,
     #[msg("Peso inválido: 1 para apontamento, 2 para denúncia")]
     PesoInvalido,
+    #[msg("Este órgão não emite sinal de risco")]
+    NaoEmiteSinal,
 }

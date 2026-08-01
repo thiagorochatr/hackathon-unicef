@@ -989,6 +989,81 @@ export type Custodia = {
       ]
     },
     {
+      "name": "registrarSinalInstitucional",
+      "docs": [
+        "Registra que um órgão emitiu um sinal.",
+        "",
+        "Existe para fechar o modo de falha número um da nossa própria lista: *o",
+        "encaminhamento não deixa rastro; sai de A e ninguém prova depois*. Sem",
+        "isto, o aviso protegido era demonstrável e o institucional não — o",
+        "contrário do razoável, já que a instituição tem **dever legal** de",
+        "notificar e precisa poder provar que cumpriu. Ou ser cobrada por não ter.",
+        "",
+        "Não cria conta: o registro é o próprio evento, assinado pelo órgão. Custa",
+        "uma taxa de assinatura e nada de aluguel.",
+        "",
+        "O compromisso leva sal, como o do sinal protegido, e pela mesma razão:",
+        "sem ele o valor se repetiria para a mesma criança e viraria um",
+        "identificador dela gravado para sempre."
+      ],
+      "discriminator": [
+        195,
+        92,
+        145,
+        98,
+        39,
+        119,
+        228,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "instituicao",
+          "docs": [
+            "A derivação a partir de `autoridade` impede um órgão de usar o cadastro",
+            "de outro. Quem assina é o próprio órgão, e é isso que dá valor ao rastro."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "autoridade"
+              }
+            ]
+          }
+        },
+        {
+          "name": "autoridade",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "compromisso",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "peso",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "transferirPara",
       "docs": [
         "Primeira fase do repasse. **Não move a custódia**: o caso continua sendo",
@@ -1202,6 +1277,19 @@ export type Custodia = {
         60,
         91
       ]
+    },
+    {
+      "name": "eventoSinalInstitucional",
+      "discriminator": [
+        162,
+        32,
+        210,
+        253,
+        181,
+        213,
+        253,
+        247
+      ]
     }
   ],
   "errors": [
@@ -1279,6 +1367,11 @@ export type Custodia = {
       "code": 6014,
       "name": "pesoInvalido",
       "msg": "Peso inválido: 1 para apontamento, 2 para denúncia"
+    },
+    {
+      "code": 6015,
+      "name": "naoEmiteSinal",
+      "msg": "Este órgão não emite sinal de risco"
     }
   ],
   "types": [
@@ -1645,6 +1738,49 @@ export type Custodia = {
           },
           {
             "name": "anulador",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "eventoSinalInstitucional",
+      "docs": [
+        "Cada sinal emitido por um órgão vira evento assinado por ele. É o que permite",
+        "provar depois que a unidade avisou — e ver quando ela não avisou.",
+        "",
+        "Não diz sobre qual criança: o compromisso leva sal e muda a cada sinal."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instituicao",
+            "type": "pubkey"
+          },
+          {
+            "name": "tipo",
+            "type": {
+              "defined": {
+                "name": "tipoInstituicao"
+              }
+            }
+          },
+          {
+            "name": "peso",
+            "type": "u8"
+          },
+          {
+            "name": "compromisso",
             "type": {
               "array": [
                 "u8",

@@ -34,8 +34,22 @@ const recebidos = global_.__fheRecebidos;
  *
  * Um envelope por setor: se três professores da mesma escola emitissem, seriam
  * três sinais de educação, e somá-los fingiria uma convergência que não houve.
- * O último sinal do setor prevalece — na demonstração isso permite substituir um
- * apontamento por uma denúncia sem reiniciar tudo.
+ *
+ * ## A regra que impede supressão
+ *
+ * Entre sinais do mesmo tipo o último prevalece — a escola corrigindo o próprio
+ * registro é legítimo. Mas **um sinal institucional nunca substitui um sinal
+ * protegido**.
+ *
+ * Sem essa regra havia um buraco sério: bastava a instituição registrar um
+ * apontamento depois de uma denúncia anônima do mesmo setor para o envelope mais
+ * forte ser sobrescrito e o alerta desaparecer. Era exatamente a falha que o
+ * canal anônimo existe para impedir — a instituição silenciando quem avisou — e
+ * acontecia sem ninguém precisar de má-fé.
+ *
+ * O nó consegue aplicar isso sem abrir nada: a marca `protegido` viaja em claro,
+ * fora do envelope. Ele continua sem saber o peso, e sem saber de que criança se
+ * trata.
  */
 export function receber(
   apelido: string,
@@ -43,7 +57,19 @@ export function receber(
   cifraB64: string,
   protegido = false,
 ): void {
-  const atuais = (recebidos.get(apelido) ?? []).filter((e) => e.setor !== setor);
+  const anteriores = recebidos.get(apelido) ?? [];
+  const doSetor = anteriores.find((e) => e.setor === setor);
+
+  if (doSetor?.protegido && !protegido) {
+    registrar("fhe", "envelope institucional recusado: já há sinal protegido", {
+      setor,
+      motivo: "instituição não sobrescreve quem avisou sem se identificar",
+      "o que o nó sabe": "que existe um protegido — nada além disso",
+    });
+    return;
+  }
+
+  const atuais = anteriores.filter((e) => e.setor !== setor);
   atuais.push({ setor, cifraB64, recebidoEm: Date.now(), protegido });
   recebidos.set(apelido, atuais);
 

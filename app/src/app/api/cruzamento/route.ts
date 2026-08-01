@@ -6,10 +6,17 @@ import {
   chavesDeRelinearizacao,
 } from "@/lib/fhe/comite";
 import * as no from "@/lib/fhe/noDeCruzamento";
-import { comite, explorador } from "@/lib/cadeia";
+import {
+  comite,
+  explorador,
+  instituicao,
+  pdaInstituicao,
+  programa,
+} from "@/lib/cadeia";
 import { LimiteExcedido, limitarChamador, permitirEscrita } from "@/lib/guarda";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { lerAberturas, registrarAbertura } from "@/lib/fhe/auditoria";
+import { registrar } from "@/lib/log";
 import { CRIANCA_FICTICIA, LIMIAR } from "@/lib/fixtures";
 import {
   EMISSORES,
@@ -90,11 +97,56 @@ export async function POST(req: Request) {
          * assina é o sistema da instituição, e aí o peso vem com assinatura.
          */
         const peso = corpo.peso === 2 ? 2 : 1;
+
+        /**
+         * O órgão assina o próprio aviso.
+         *
+         * Sem isto o rastro do sinal institucional não existia: ficava só um
+         * envelope na memória. O aviso protegido era demonstrável e o da
+         * instituição não — o contrário do razoável, já que ela tem dever legal
+         * de notificar e precisa poder provar que cumpriu.
+         *
+         * Não cria conta: custa uma taxa de assinatura e nada de aluguel. O
+         * compromisso leva sal, então o que sobe não identifica criança nenhuma.
+         */
+        const chave = instituicao(papel);
+        await permitirEscrita(req, "registrar sinal do órgão", chave);
+        const { compromissoDoSinal } = await import("@/lib/zk/registro");
+        const sal = Buffer.from(
+          crypto.getRandomValues(new Uint8Array(16)),
+        ).toString("hex");
+        const assinatura = await programa(chave)
+          .methods.registrarSinalInstitucional(
+            Array.from(Buffer.from(compromissoDoSinal(apelido(), peso, sal), "hex")),
+            peso,
+          )
+          .accountsPartial({
+            instituicao: pdaInstituicao(chave.publicKey),
+            autoridade: chave.publicKey,
+          })
+          .rpc();
+
+        registrar(
+          "cadeia",
+          "órgão assinou o próprio aviso",
+          {
+            órgão: papel,
+            peso,
+            "prova que a unidade avisou": "sim, com assinatura dela",
+            "diz de qual criança": "não — o compromisso leva sal",
+          },
+          assinatura,
+        );
+
         await chavePublica();
         const { cifrarComoOrgao } = await import("@/lib/fhe/orgao");
         const cifra = await cifrarComoOrgao(peso);
         no.receber(apelido(), SETOR_DO_PAPEL[papel], cifra);
-        return NextResponse.json({ sinais: resumo() });
+        return NextResponse.json({
+          sinais: resumo(),
+          assinatura,
+          link: explorador(assinatura),
+        });
       }
 
       /**
