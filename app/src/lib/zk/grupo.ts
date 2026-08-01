@@ -76,7 +76,10 @@ async function buscarTransacao(
   rede: ReturnType<typeof conexao>,
   assinatura: string,
 ) {
-  for (let tentativa = 0; tentativa < 4; tentativa += 1) {
+  // Insiste bastante, e de propósito. Falhar aqui derruba a leitura inteira,
+  // porque uma folha faltando muda a raiz — e a rede pública de testes recusa
+  // requisições com frequência. Desistir cedo custava mais do que esperar.
+  for (let tentativa = 0; tentativa < 8; tentativa += 1) {
     try {
       const tx = await rede.getTransaction(assinatura, {
         commitment: "confirmed",
@@ -86,7 +89,7 @@ async function buscarTransacao(
     } catch {
       // rede reclamando; a espera abaixo resolve
     }
-    await dormir(500 * (tentativa + 1));
+    await dormir(400 * 2 ** tentativa);
   }
   throw new Error(
     `a rede não devolveu a transação ${assinatura}. ` +

@@ -191,7 +191,9 @@ export async function POST(req: Request) {
               erro:
                 "Você já enviou um sinal protegido neste setor neste mês. " +
                 "É o limite que impede a mesma pessoa de repetir o envio — e ele " +
-                "funciona sem que ninguém descubra quem você é.",
+                "funciona sem que ninguém descubra quem você é. " +
+                "Para repetir a demonstração, use \u201cGerar outra identidade\u201d: " +
+                "outra pessoa, outro anulador.",
               jaEnviou: true,
             },
             { status: 409 },

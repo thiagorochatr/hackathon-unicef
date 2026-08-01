@@ -49,12 +49,18 @@ export default function TelaDenuncia() {
   const [emitido, setEmitido] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
     // Só busca aqui; quem escreve o estado é o callback. Escrever direto no
     // corpo do efeito faz a tela renderizar em cascata.
     let vivo = true;
     (async () => {
+      // O estado entra pelo callback, e não no corpo do efeito: escrever direto
+      // ali faz a tela renderizar em cascata.
+      setCarregando(true);
+      setErro(null);
       try {
         const [id, r] = await Promise.all([
           obterIdentidade(),
@@ -67,12 +73,14 @@ export default function TelaDenuncia() {
         setPeriodo(r.periodo);
       } catch (e) {
         if (vivo) setErro(String(e instanceof Error ? e.message : e));
+      } finally {
+        if (vivo) setCarregando(false);
       }
     })();
     return () => {
       vivo = false;
     };
-  }, [setor]);
+  }, [setor, tentativa]);
 
   const credenciado =
     identidade && grupo ? grupo.folhas.includes(identidade.compromisso) : false;
@@ -356,8 +364,34 @@ export default function TelaDenuncia() {
                 </div>
               )}
             </>
+          ) : carregando ? (
+            <div className="space-y-1">
+              <p className="text-sm text-[var(--texto-2)]">
+                Refazendo a lista a partir da cadeia…
+              </p>
+              <p className="text-xs text-[var(--texto-3)]">
+                Na primeira vez isto leva até um minuto: a lista não fica guardada
+                em lugar nenhum, ela é reconstruída lendo os eventos da rede um a
+                um. É o que permite dizer que qualquer pessoa refaz esta mesma
+                lista sem pedir acesso a sistema nenhum — e é honesto que custe.
+              </p>
+            </div>
           ) : (
-            <p className="text-sm text-[var(--texto-2)]">Lendo a lista da rede…</p>
+            <div className="space-y-2">
+              <p className="text-sm" style={{ color: "var(--alerta)" }}>
+                Não foi possível refazer a lista agora.
+              </p>
+              <p className="text-xs text-[var(--texto-2)]">
+                A rede pública de testes recusa requisições quando há muitas
+                seguidas. Não há nada errado com a sua credencial.
+              </p>
+              <button
+                onClick={() => setTentativa((n) => n + 1)}
+                className="botao !px-3 !py-1.5 text-xs"
+              >
+                tentar de novo
+              </button>
+            </div>
           )}
         </div>
       </section>

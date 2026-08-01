@@ -30,20 +30,30 @@ export async function register() {
   // Em segundo plano, e sem derrubar o servidor se a rede estiver fora.
   void (async () => {
     for (const setor of SETORES) {
-      try {
-        const inicio = Date.now();
-        const grupo = await lerGrupo(setor);
-        if (grupo) {
-          // Grupo vazio não tem raiz para refazer, e isso não é divergência.
-          const divergiu =
-            grupo.membros > 0 && grupo.raiz !== grupo.raizRefeita;
+      // A leitura é tudo ou nada: uma transação que não volta derruba tudo, e a
+      // rede pública recusa requisições com frequência. Sem repetição, uma
+      // recusa deixava o cache vazio e o custo frio caía em quem abrisse a tela.
+      for (let tentativa = 1; tentativa <= 3; tentativa += 1) {
+        try {
+          const inicio = Date.now();
+          const grupo = await lerGrupo(setor);
+          if (grupo) {
+            // Grupo vazio não tem raiz para refazer, e isso não é divergência.
+            const divergiu = grupo.membros > 0 && grupo.raiz !== grupo.raizRefeita;
+            console.log(
+              `[credenciados] ${setor}: ${grupo.membros} folhas em ${Date.now() - inicio} ms` +
+                (divergiu ? " — RAIZ NÃO CONFERE" : ""),
+            );
+          }
+          break;
+        } catch (e) {
+          const ultima = tentativa === 3;
           console.log(
-            `[credenciados] ${setor}: ${grupo.membros} folhas em ${Date.now() - inicio} ms` +
-              (divergiu ? " — RAIZ NÃO CONFERE" : ""),
+            `[credenciados] ${setor}: tentativa ${tentativa} falhou` +
+              (ultima ? ` — desistindo (${String(e).slice(0, 70)})` : ", tentando de novo"),
           );
+          if (!ultima) await new Promise((r) => setTimeout(r, 3000));
         }
-      } catch (e) {
-        console.log(`[credenciados] ${setor}: não deu para ler agora (${String(e).slice(0, 80)})`);
       }
     }
   })();
