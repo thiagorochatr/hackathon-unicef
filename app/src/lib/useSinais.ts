@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Papel, Setor } from "./tipos";
+import type { Setor } from "./tipos";
 
 export interface SinalNoNo {
   /** O cruzamento conta setores, não instituições. */
@@ -52,16 +52,15 @@ export function useSinais() {
   return { sinais, recarregar };
 }
 
-export async function emitirSinal(instituicao: Papel): Promise<SinalNoNo[]> {
-  const r = await fetch("/api/cruzamento", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ acao: "emitir", instituicao }),
-  });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.erro ?? "falha ao registrar o sinal");
-  return d.sinais;
-}
+/*
+ * O emissor que existia aqui foi removido junto com a tela `/sinal/[papel]`.
+ *
+ * Ele mandava o sinal **sem peso** — é anterior à distinção entre apontamento e
+ * denúncia. Deixá-lo por perto seria uma armadilha: qualquer chamada nova cairia
+ * no caminho velho e emitiria sinal sem a força declarada, silenciosamente.
+ *
+ * Quem emite agora é `app/(orgaos)/_lib/emitir.ts`, de dentro dos portais.
+ */
 
 export interface Auditoria {
   assinatura: string;

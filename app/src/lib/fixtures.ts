@@ -25,26 +25,15 @@ export const CRIANCA_FICTICIA = {
 export const PSEUDONIMO_DEMO =
   "7c1f4a9e2b8d5063af71e94c2d0b6835e4a7f1c9d82b30465a9e7c1f4a9e2b8d";
 
-/** O que cada instituição observa isoladamente — e que sozinho não vira caso. */
-export const SINAIS_FICTICIOS: Record<
-  Extract<Papel, "ubs" | "escola" | "cras">,
-  { rotulo: string; detalhe: string }
-> = {
-  ubs: {
-    rotulo: "Atendimento com lesão sem explicação compatível",
-    detalhe:
-      "Segundo atendimento em 60 dias. Responsável deu versões divergentes sobre a origem.",
-  },
-  escola: {
-    rotulo: "Faltas reiteradas e mudança abrupta de comportamento",
-    detalhe:
-      "14 faltas em 30 dias. Professora relata retraimento e recusa a atividades em grupo.",
-  },
-  cras: {
-    rotulo: "Família em acompanhamento com agravamento de vulnerabilidade",
-    detalhe: "Perda de renda e histórico anterior de descumprimento de condicionalidade.",
-  },
-};
+/*
+ * O que cada instituição observa isoladamente vivia aqui, em três frases.
+ *
+ * Saiu junto com a tela `/sinal/[papel]`, que era quem lia. Agora esse conteúdo
+ * mora dentro de cada portal — `(orgaos)/ubs/dados.ts`, `escola/dados.ts`,
+ * `cras/dados.ts` — em fila de atendimento, chamada e acompanhamento familiar,
+ * porque é assim que ele aparece de verdade: no meio do trabalho, e não como
+ * resumo de si mesmo.
+ */
 
 /**
  * Quem responde pelo caso dentro de cada órgão. É esta identificação que vira

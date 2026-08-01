@@ -23,16 +23,18 @@ export default function Inicio() {
   const passos: Passo[] = [
     {
       n: 1,
-      titulo: "UBS registra um sinal",
-      descricao: "O que sai da unidade é um apelido e um envelope lacrado — nunca o dado.",
-      href: "/sinal/ubs",
+      titulo: "A UBS atende, e notifica",
+      descricao:
+        "No meio da fila do dia, no bloco de notificação compulsória. O que sai da unidade é um apelido e um envelope lacrado — nunca o dado.",
+      href: "/ubs",
       feito: sinais.some((s) => s.setor === "saude"),
     },
     {
       n: 2,
-      titulo: "Escola registra outro sinal",
-      descricao: "Independente. A escola não sabe que a UBS existe.",
-      href: "/sinal/escola",
+      titulo: "A escola faz a chamada, e registra",
+      descricao:
+        "Outro sistema, outra secretaria, outro login. A escola não sabe que a UBS existe.",
+      href: "/escola",
       feito: sinais.some((s) => s.setor === "educacao"),
     },
     {
