@@ -50,11 +50,12 @@ export default function TelaCruzamento() {
         <h2 className="rotulo">Recebidos — {sinais.length} envelope(s)</h2>
         {sinais.length === 0 ? (
           <div className="cartao p-6 text-sm text-[var(--texto-2)]">
-            Nenhum sinal chegou ainda.{" "}
-            <Link href="/sinal/ubs" className="underline">
-              Registre um sinal
-            </Link>{" "}
-            na UBS ou na escola.
+            Nenhum sinal chegou ainda. Os envelopes saem de dentro dos{" "}
+            <Link href="/orgaos" className="underline">
+              sistemas dos órgãos
+            </Link>
+            , no meio de uma tarefa comum — a fila da UBS, a chamada da escola, a
+            visita do CRAS.
           </div>
         ) : (
           <div className="space-y-2">

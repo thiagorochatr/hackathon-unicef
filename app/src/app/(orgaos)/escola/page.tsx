@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AvisoCanalExterno } from "../_componentes/AvisoCanalExterno";
 import {
   ESCOLA,
   LIMITE_FALTAS,
@@ -227,46 +228,13 @@ export default function DiarioDeClasse() {
                 </div>
               )}
 
-              {/*
-                O canal protegido é avisado aqui, e executado fora.
-
-                Ele já esteve dentro deste formulário, e era errado: de quem o
-                professor tem medo é, muitas vezes, da própria direção. Gerar a
-                prova dentro do software da escola põe o segredo dele na máquina
-                de quem ele teme.
-              */}
-              <div
-                className="rounded border p-3"
-                style={{ borderColor: "var(--alerta)", background: "color-mix(in srgb, var(--alerta) 7%, transparent)" }}
-              >
-                <p className="text-[0.8125rem] font-bold">
-                  Você não precisa passar por aqui para avisar.
-                </p>
-                <p className="mt-1 text-[0.75rem] text-[var(--texto-2)]">
-                  Existe um canal em que o profissional prova que é da rede de
-                  educação deste município — o aviso vale igual — sem que ninguém
-                  descubra qual profissional foi.{" "}
-                  <strong className="text-[var(--texto)]">
-                    Ele não é deste sistema, e roda fora dele.
-                  </strong>{" "}
-                  É por isso que a escola não tem como saber que você o usou.
-                </p>
-                <p className="mt-2 font-mono text-[0.8125rem]">
-                  {"{endereço do canal}"}/denuncia
-                </p>
-                <p className="mt-1 text-[0.6875rem] text-[var(--texto-3)]">
-                  O endereço está escrito, e não como link, de propósito: um clique
-                  daqui seria registrado por este sistema — e seria o próprio sistema
-                  da escola sabendo que você pensou em avisar por fora.
-                </p>
-                <a
-                  href="/denuncia"
-                  className="mt-2 inline-block text-[0.6875rem] underline"
-                  style={{ color: "var(--texto-3)" }}
-                >
-                  abrir mesmo assim, só nesta demonstração
-                </a>
-              </div>
+              <AvisoCanalExterno
+                motivo={
+                  "De quem o professor tem medo é, muitas vezes, da própria direção — " +
+                  "e é a direção que manda neste software. É por isso que a escola não " +
+                  "tem como saber que você usou o canal."
+                }
+              />
 
               {passos.length > 0 && (
                 <div className="space-y-1 rounded border border-[var(--borda)] bg-[var(--fundo-3)] p-3">

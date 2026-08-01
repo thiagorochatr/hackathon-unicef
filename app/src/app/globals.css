@@ -149,25 +149,42 @@ body {
   min-height: 100vh;
 }
 
+/* A cor de cada secretaria vive numa regra só, lida de dois lugares:
+
+   - `data-orgao` liga o portal inteiro — tema claro, altura de tela, o pacote
+     completo. É o que vai no elemento raiz de `/ubs`, `/escola` e `/cras`.
+   - `data-barra` liga **só a barra colorida**, para a prévia de cada sistema na
+     tela que apresenta os três. Ali não se quer a casca da página: um cartão que
+     herdasse `min-height: 100vh` e fundo claro viraria um bloco branco gigante
+     dentro do Elo, que é escuro. */
+
 /* Secretaria de Educação — verde-escuro de planilha e diário de classe. */
-[data-orgao="escola"] {
+[data-orgao="escola"],
+[data-barra="escola"] {
   --acento: #1f6f43;
   --acento-fraco: #e3f0e8;
   --barra: #175835;
 }
 
 /* Secretaria de Saúde — o azul de todo sistema do SUS. */
-[data-orgao="ubs"] {
+[data-orgao="ubs"],
+[data-barra="ubs"] {
   --acento: #0b5c94;
   --acento-fraco: #e2eef7;
   --barra: #084a78;
 }
 
 /* Assistência Social — o terroso do SUAS. */
-[data-orgao="cras"] {
+[data-orgao="cras"],
+[data-barra="cras"] {
   --acento: #9a5b1d;
   --acento-fraco: #f6ebdf;
   --barra: #7d4916;
+}
+
+[data-barra] {
+  background: var(--barra);
+  color: #fff;
 }
 
 @layer components {
