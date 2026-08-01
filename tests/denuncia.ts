@@ -383,6 +383,72 @@ describe("sinal credenciado", () => {
     }
   });
 
+  it("toda abertura do comitê fica contada na rede", async function () {
+    this.timeout(180_000);
+    const comite = Keypair.fromSecretKey(
+      Uint8Array.from(
+        JSON.parse(readFileSync(join(process.cwd(), "keys", "comite.json"), "utf8")),
+      ),
+    );
+    const registro = PublicKey.findProgramAddressSync(
+      [enc.encode("aberturas"), comite.publicKey.toBuffer()],
+      pid,
+    )[0];
+    const antes = await program.account.registroAberturas.fetchNullable(registro);
+    const totalAntes = antes ? Number(antes.total) : 0;
+    const alertasAntes = antes ? Number(antes.alertas) : 0;
+
+    const compromisso = Array.from(
+      Buffer.from(Keypair.generate().publicKey.toBytes()),
+    );
+    await program.methods
+      .registrarAbertura(compromisso, true)
+      .accountsPartial({
+        registro,
+        emissor: PublicKey.findProgramAddressSync(
+          [enc.encode("inst"), comite.publicKey.toBuffer()],
+          pid,
+        )[0],
+        autoridade: comite.publicKey,
+      })
+      .signers([comite])
+      .rpc();
+
+    const depois = await program.account.registroAberturas.fetch(registro);
+    assert.equal(Number(depois.total), totalAntes + 1, "o total não subiu");
+    assert.equal(Number(depois.alertas), alertasAntes + 1, "os alertas não subiram");
+    console.log(
+      `      → o comitê já abriu ${Number(depois.total)} vereditos, ${Number(depois.alertas)} viraram alerta`,
+    );
+  });
+
+  it("um órgão comum não consegue registrar abertura", async function () {
+    this.timeout(180_000);
+    // Só quem faz o cruzamento registra abertura. Sem isso, qualquer um poderia
+    // inflar a contagem e sujar a auditoria.
+    const registro = PublicKey.findProgramAddressSync(
+      [enc.encode("aberturas"), creas.publicKey.toBuffer()],
+      pid,
+    )[0];
+    try {
+      await program.methods
+        .registrarAbertura(Array.from(Buffer.alloc(32)), false)
+        .accountsPartial({
+          registro,
+          emissor: PublicKey.findProgramAddressSync(
+            [enc.encode("inst"), creas.publicKey.toBuffer()],
+            pid,
+          )[0],
+          autoridade: creas.publicKey,
+        })
+        .signers([creas])
+        .rpc();
+      assert.fail("o CREAS não deveria registrar abertura");
+    } catch (e) {
+      assert.match(String(e), /NaoEhComite|custom program error/i);
+    }
+  });
+
   it("peso fora de 1 e 2 é recusado", async function () {
     this.timeout(180_000);
     const sal = salAleatorio();

@@ -63,8 +63,17 @@ export async function emitirSinal(instituicao: Papel): Promise<SinalNoNo[]> {
   return d.sinais;
 }
 
+export interface Auditoria {
+  assinatura: string;
+  link: string;
+  total: number;
+  alertas: number;
+}
+
 export interface ResultadoCruzamento {
   alerta: boolean;
+  /** O registro público desta abertura. */
+  auditoria: Auditoria;
   /** O que o comitê abriu. Não é a contagem: é ruído mascarado. */
   aberto: number;
   limiar: number;

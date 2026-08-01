@@ -66,9 +66,15 @@ export default function TelaEstado() {
               ok: true,
             },
             {
+              t: "Toda abertura do comitê fica contada na rede",
+              e: "funciona de verdade",
+              d: "O comitê é a parte em que mais se pede confiança, porque é ele que tem a chave. Cada vez que ele abre um veredito, isso vira registro assinado na rede, e um contador público diz quantas aberturas houve e quantas viraram alerta. Em vez de acreditar que ele só abre o veredito, dá para conferir quantas vezes ele abriu.",
+              ok: true,
+            },
+            {
               t: "Chave repartida entre vários órgãos",
               e: "no plano",
-              d: "Hoje a chave do comitê existe inteira em um lugar só. Na versão completa é preciso um número mínimo de instituições concordando para abrir qualquer coisa.",
+              d: "A chave do comitê está inteira em um lugar só. Repartir de verdade exige abertura parcial — cada guardião calcula um pedaço com o seu naco, e a chave nunca existe inteira — e a biblioteca que usamos só expõe abertura completa; seria preciso trocá-la. Repartir com o método simples (juntar os pedaços na hora de abrir) daria uma garantia bem mais fraca do que o nome sugere: quem junta poderia guardar. E, acima de tudo, isso só passa a valer com operadores de verdade: repartir a chave entre instituições que são todas o mesmo servidor não protegeria nada.",
               ok: false,
             },
             {

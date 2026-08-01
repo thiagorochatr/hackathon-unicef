@@ -539,6 +539,116 @@ export type Custodia = {
       ]
     },
     {
+      "name": "registrarAbertura",
+      "docs": [
+        "Registra que o comitê abriu um veredito.",
+        "",
+        "O comitê tem a chave, e por isso é a parte em que mais se pede confiança.",
+        "Esta instrução troca parte dessa confiança por contagem: **toda abertura",
+        "que passa por aqui deixa rastro assinado**, e qualquer pessoa lê a conta",
+        "sem pedir acesso a sistema nenhum — quantas vezes ele abriu, quantas",
+        "viraram alerta, e quando foi a última.",
+        "",
+        "O que o compromisso é: um resumo do próprio envelope de veredito. Ele não",
+        "serve para identificar criança nenhuma, e nem conseguiria: o veredito",
+        "carrega um fator sorteado a cada avaliação, então o mesmo conjunto de",
+        "sinais produz um envelope diferente — e um resumo diferente — toda vez.",
+        "",
+        "O que isto **não** faz, dito na cara: não impede uma abertura fora deste",
+        "caminho. Para isso, comitê e nó de cruzamento precisam ser operadores",
+        "diferentes, e aí o comitê pode recusar abrir o que não tiver pedido",
+        "público. Aqui os dois são o mesmo processo, então o que se ganha é a",
+        "contagem, não a barreira."
+      ],
+      "discriminator": [
+        242,
+        94,
+        84,
+        64,
+        206,
+        243,
+        48,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "registro",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  98,
+                  101,
+                  114,
+                  116,
+                  117,
+                  114,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "autoridade"
+              }
+            ]
+          }
+        },
+        {
+          "name": "emissor",
+          "docs": [
+            "Só quem está cadastrado para fazer o cruzamento registra abertura. A",
+            "derivação a partir de `autoridade` impede um órgão de usar o cadastro",
+            "de outro."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "autoridade"
+              }
+            ]
+          }
+        },
+        {
+          "name": "autoridade",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "compromisso",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "alerta",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "registrarDesfecho",
       "discriminator": [
         207,
@@ -1012,9 +1122,35 @@ export type Custodia = {
         172,
         232
       ]
+    },
+    {
+      "name": "registroAberturas",
+      "discriminator": [
+        41,
+        186,
+        155,
+        208,
+        213,
+        254,
+        154,
+        120
+      ]
     }
   ],
   "events": [
+    {
+      "name": "eventoAbertura",
+      "discriminator": [
+        83,
+        177,
+        160,
+        183,
+        204,
+        213,
+        107,
+        196
+      ]
+    },
     {
       "name": "eventoAncoragem",
       "discriminator": [
@@ -1296,6 +1432,43 @@ export type Custodia = {
           },
           {
             "name": "encerrado"
+          }
+        ]
+      }
+    },
+    {
+      "name": "eventoAbertura",
+      "docs": [
+        "Cada abertura de veredito vira evento. Somado ao contador, permite conferir",
+        "que o número na conta corresponde ao que de fato aconteceu."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "comite",
+            "type": "pubkey"
+          },
+          {
+            "name": "compromisso",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "alerta",
+            "type": "bool"
+          },
+          {
+            "name": "total",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }
@@ -1595,6 +1768,40 @@ export type Custodia = {
         "fields": [
           {
             "name": "usadoEm",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "registroAberturas",
+      "docs": [
+        "Quantas vezes o comitê abriu um veredito, e quantas viraram alerta.",
+        "",
+        "Existe para ser lido por quem quiser conferir. Uma conta só, um `fetch`, sem",
+        "precisar percorrer a história inteira da rede."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "comite",
+            "type": "pubkey"
+          },
+          {
+            "name": "total",
+            "type": "u64"
+          },
+          {
+            "name": "alertas",
+            "type": "u64"
+          },
+          {
+            "name": "ultima",
             "type": "i64"
           },
           {

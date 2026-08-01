@@ -134,6 +134,12 @@ export const pdaInstituicao = (autoridade: PublicKey) =>
 export const pdaCaso = (alertaId: Buffer) =>
   PublicKey.findProgramAddressSync([enc.encode("caso"), alertaId], ID_PROGRAMA)[0];
 
+export const pdaAberturas = (comite: PublicKey) =>
+  PublicKey.findProgramAddressSync(
+    [enc.encode("aberturas"), comite.toBuffer()],
+    ID_PROGRAMA,
+  )[0];
+
 export const pdaAncora = (inst: PublicKey, periodo: number) => {
   const p = Buffer.alloc(4);
   p.writeUInt32LE(periodo);

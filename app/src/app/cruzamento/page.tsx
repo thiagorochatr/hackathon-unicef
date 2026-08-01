@@ -220,11 +220,46 @@ export default function TelaCruzamento() {
         )}
       </section>
 
+      {resultado?.auditoria && (
+        <section className="space-y-2">
+          <h2 className="rotulo">A abertura ficou registrada</h2>
+          <div className="cartao space-y-2 p-4">
+            <p className="text-sm text-[var(--texto-2)]">
+              O comitê já abriu{" "}
+              <strong className="text-[var(--texto)]">
+                {resultado.auditoria.total.toLocaleString("pt-BR")}
+              </strong>{" "}
+              vereditos, dos quais{" "}
+              <strong className="text-[var(--texto)]">
+                {resultado.auditoria.alertas.toLocaleString("pt-BR")}
+              </strong>{" "}
+              viraram alerta. Esses números estão na rede, não aqui.
+            </p>
+            <p className="text-xs text-[var(--texto-2)]">
+              O comitê é a parte em que mais se pede confiança, porque é ele que tem a
+              chave. Registrar cada abertura troca parte dessa confiança por{" "}
+              <strong className="text-[var(--texto)]">contagem</strong>: em vez de
+              acreditar que ele só abre o veredito, dá para conferir quantas vezes ele
+              abriu.
+            </p>
+            <a
+              href={resultado.auditoria.link}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm underline"
+            >
+              ver este registro no explorador
+            </a>
+          </div>
+        </section>
+      )}
+
       <p className="text-xs text-[var(--texto-3)]">
         O que ainda falta, dito na cara: a chave do comitê está inteira em um lugar
-        só. Ela abre apenas um &ldquo;sim&rdquo; ou &ldquo;não&rdquo;, e não a
-        contagem — mas na versão completa ela é repartida entre vários órgãos, e é
-        preciso um número mínimo deles concordando para abrir até isso.
+        só. Ela abre apenas um &ldquo;sim&rdquo; ou &ldquo;não&rdquo;, e cada abertura
+        fica contada acima — mas nada impede uma abertura fora deste caminho. Para
+        isso, comitê e nó precisam ser operadores diferentes, e a chave precisa ser
+        repartida de verdade entre eles.
       </p>
     </div>
   );

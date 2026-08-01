@@ -238,6 +238,54 @@ pub mod custodia {
         Ok(())
     }
 
+    /// Registra que o comitê abriu um veredito.
+    ///
+    /// O comitê tem a chave, e por isso é a parte em que mais se pede confiança.
+    /// Esta instrução troca parte dessa confiança por contagem: **toda abertura
+    /// que passa por aqui deixa rastro assinado**, e qualquer pessoa lê a conta
+    /// sem pedir acesso a sistema nenhum — quantas vezes ele abriu, quantas
+    /// viraram alerta, e quando foi a última.
+    ///
+    /// O que o compromisso é: um resumo do próprio envelope de veredito. Ele não
+    /// serve para identificar criança nenhuma, e nem conseguiria: o veredito
+    /// carrega um fator sorteado a cada avaliação, então o mesmo conjunto de
+    /// sinais produz um envelope diferente — e um resumo diferente — toda vez.
+    ///
+    /// O que isto **não** faz, dito na cara: não impede uma abertura fora deste
+    /// caminho. Para isso, comitê e nó de cruzamento precisam ser operadores
+    /// diferentes, e aí o comitê pode recusar abrir o que não tiver pedido
+    /// público. Aqui os dois são o mesmo processo, então o que se ganha é a
+    /// contagem, não a barreira.
+    pub fn registrar_abertura(
+        ctx: Context<RegistrarAbertura>,
+        compromisso: [u8; 32],
+        alerta: bool,
+    ) -> Result<()> {
+        let agora = Clock::get()?.unix_timestamp;
+        let quem = ctx.accounts.autoridade.key();
+
+        let registro = &mut ctx.accounts.registro;
+        registro.comite = quem;
+        registro.total = registro.total.checked_add(1).ok_or(ErroCustodia::TrilhaCheia)?;
+        if alerta {
+            registro.alertas = registro
+                .alertas
+                .checked_add(1)
+                .ok_or(ErroCustodia::TrilhaCheia)?;
+        }
+        registro.ultima = agora;
+        registro.bump = ctx.bumps.registro;
+
+        emit!(EventoAbertura {
+            comite: quem,
+            compromisso,
+            alerta,
+            total: registro.total,
+            ts: agora,
+        });
+        Ok(())
+    }
+
     /// Primeira fase do repasse. **Não move a custódia**: o caso continua sendo
     /// de quem transferiu e o prazo segue correndo contra ele. É o que impede a
     /// responsabilidade de evaporar no encaminhamento.
@@ -601,6 +649,20 @@ pub struct GrupoCredenciados {
     pub bump: u8,
 }
 
+/// Quantas vezes o comitê abriu um veredito, e quantas viraram alerta.
+///
+/// Existe para ser lido por quem quiser conferir. Uma conta só, um `fetch`, sem
+/// precisar percorrer a história inteira da rede.
+#[account]
+#[derive(InitSpace)]
+pub struct RegistroAberturas {
+    pub comite: Pubkey,
+    pub total: u64,
+    pub alertas: u64,
+    pub ultima: i64,
+    pub bump: u8,
+}
+
 /// Marca que um anulador já foi usado.
 ///
 /// A conta em si não guarda nada de útil — o que importa é ela **existir**. O
@@ -755,6 +817,30 @@ pub struct AtualizarGrupo<'info> {
     pub credenciador: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct RegistrarAbertura<'info> {
+    #[account(
+        init_if_needed,
+        payer = autoridade,
+        space = 8 + RegistroAberturas::INIT_SPACE,
+        seeds = [b"aberturas", autoridade.key().as_ref()],
+        bump
+    )]
+    pub registro: Account<'info, RegistroAberturas>,
+    /// Só quem está cadastrado para fazer o cruzamento registra abertura. A
+    /// derivação a partir de `autoridade` impede um órgão de usar o cadastro
+    /// de outro.
+    #[account(
+        seeds = [b"inst", autoridade.key().as_ref()],
+        bump = emissor.bump,
+        constraint = emissor.tipo == TipoInstituicao::Comite @ ErroCustodia::NaoEhComite
+    )]
+    pub emissor: Account<'info, Instituicao>,
+    #[account(mut)]
+    pub autoridade: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 /// Ato que só o custodiante corrente pode praticar.
 #[derive(Accounts)]
 pub struct AtoDoCustodiante<'info> {
@@ -862,6 +948,17 @@ pub struct EventoSinalCredenciado {
     pub peso: u8,
     pub compromisso_sinal: [u8; 32],
     pub anulador: [u8; 32],
+    pub ts: i64,
+}
+
+/// Cada abertura de veredito vira evento. Somado ao contador, permite conferir
+/// que o número na conta corresponde ao que de fato aconteceu.
+#[event]
+pub struct EventoAbertura {
+    pub comite: Pubkey,
+    pub compromisso: [u8; 32],
+    pub alerta: bool,
+    pub total: u64,
     pub ts: i64,
 }
 

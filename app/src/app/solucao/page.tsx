@@ -343,6 +343,62 @@ export default function TelaSolucao() {
         </p>
       </section>
 
+      {/* Custo */}
+      <section className="space-y-4">
+        <h2 className="rotulo">Quanto custa manter isso rodando</h2>
+        <p className="max-w-3xl text-sm text-[var(--texto-2)]">
+          Medido na própria rede, e não estimado: os tamanhos vêm do programa
+          publicado e o valor do aluguel vem do mesmo cálculo que a rede usa para
+          cobrar.
+        </p>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--ok)]">
+              O QUE SE GASTA DE FATO
+            </p>
+            <p className="text-3xl font-semibold tracking-tight">
+              R$ 56 mil <span className="text-base font-normal">por ano</span>
+            </p>
+            <p className="text-sm text-[var(--texto-2)]">
+              Para os{" "}
+              <strong className="text-[var(--texto)]">5.570 municípios</strong> do
+              país, com 500 casos por município por ano. Dá menos de{" "}
+              <strong className="text-[var(--texto)]">R$ 10 por município</strong> em
+              doze meses.
+            </p>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              São quatro atos assinados por caso — abertura, repasse, aceite e
+              desfecho — a fração de centavo cada um.
+            </p>
+          </div>
+
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--alerta)]">
+              O QUE FICA PARADO, E VOLTA
+            </p>
+            <p className="text-3xl font-semibold tracking-tight">
+              R$ 6,1 mi <span className="text-base font-normal">de depósito</span>
+            </p>
+            <p className="text-sm text-[var(--texto-2)]">
+              A rede cobra um depósito por espaço ocupado, e devolve quando o espaço
+              é liberado. Não é despesa: é capital parado enquanto os casos existem.
+            </p>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              Confundir os dois é o erro mais comum nessa conta. O que sai do caixa
+              para sempre são os R$ 56 mil; o resto volta.
+            </p>
+          </div>
+        </div>
+
+        <p className="max-w-3xl text-xs text-[var(--texto-3)]">
+          Conversão a R$ 1.000 por unidade da moeda da rede — o único número volátil
+          aqui. O volume de 500 casos por município por ano é hipótese nossa, e está
+          marcada como tal no código que faz a medição. Quem discordar troca o número
+          e refaz a conta.
+        </p>
+      </section>
+
       {/* O quântico */}
       <section className="space-y-4">
         <h2 className="rotulo">E quando existir computador quântico</h2>

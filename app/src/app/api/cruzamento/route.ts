@@ -6,7 +6,9 @@ import {
   chavesDeRelinearizacao,
 } from "@/lib/fhe/comite";
 import * as no from "@/lib/fhe/noDeCruzamento";
+import { explorador } from "@/lib/cadeia";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
+import { lerAberturas, registrarAbertura } from "@/lib/fhe/auditoria";
 import { CRIANCA_FICTICIA, LIMIAR } from "@/lib/fixtures";
 import {
   EMISSORES,
@@ -38,7 +40,11 @@ function resumo() {
 }
 
 export async function GET() {
-  return NextResponse.json({ sinais: resumo(), limiar: LIMIAR });
+  return NextResponse.json({
+    sinais: resumo(),
+    limiar: LIMIAR,
+    aberturas: await lerAberturas(),
+  });
 }
 
 export async function POST(req: Request) {
@@ -131,8 +137,13 @@ export async function POST(req: Request) {
         const { alerta, aberto } = await avaliarVeredito(veredito);
         const comChaveErrada = await abrirComChaveErrada(veredito);
 
+        // Toda abertura deixa rastro assinado na rede. É o que troca parte da
+        // confiança no comitê por uma contagem que qualquer pessoa confere.
+        const auditoria = await registrarAbertura(veredito, alerta);
+
         return NextResponse.json({
           alerta,
+          auditoria: { ...auditoria, link: explorador(auditoria.assinatura) },
           // Vai para a tela só para se ver que não significa nada: é o produto
           // mascarado por um fator sorteado, e não a contagem.
           aberto,
