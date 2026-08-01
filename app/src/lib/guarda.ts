@@ -54,6 +54,8 @@ export const CUSTO = {
   abrir_caso: 0.002211,
   /** Registra sinal protegido: aluguel do anulador mais a taxa. */
   registrar_sinal: 0.001014,
+  /** Marca presença do órgão no período: aluguel da âncora mais a taxa. */
+  ancorar: 0.001487,
   /** Só a taxa de assinatura. */
   so_taxa: 0.000005,
 } as const;

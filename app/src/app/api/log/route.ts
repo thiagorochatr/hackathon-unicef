@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ler, limparLog, registrar } from "@/lib/log";
+import { LimiteExcedido, limitarChamador } from "@/lib/guarda";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,17 @@ export async function POST(req: Request) {
     corpo = await req.json();
   } catch {
     return NextResponse.json({ erro: "corpo inválido" }, { status: 400 });
+  }
+
+  try {
+    // Não gasta token, mas um laço aqui afogaria os eventos de verdade no meio
+    // de uma apresentação — que é justamente quando o log importa.
+    limitarChamador(req, "escrever no log", true);
+  } catch (e) {
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
+    throw e;
   }
 
   if (corpo.limpar) {

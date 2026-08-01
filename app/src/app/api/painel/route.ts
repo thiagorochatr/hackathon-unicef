@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { CUSTO, LimiteExcedido, permitirEscrita } from "@/lib/guarda";
 import { randomBytes } from "crypto";
 import {
   comite,
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
 
   try {
     const chave = instituicao(papel);
+    // Cada período novo cria uma conta na rede, e conta custa aluguel. Sem esta
+    // cerca, bastava chamar com período 1, 2, 3… para esvaziar a chave do órgão.
+    await permitirEscrita(req, "marcar presença", chave, CUSTO.ancorar);
     const prog = programa(chave);
 
     /**
@@ -112,6 +116,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ assinatura, orgaos: await situacao(periodo) });
   } catch (e) {
+    if (e instanceof LimiteExcedido) {
+      return NextResponse.json({ erro: e.message }, { status: 429 });
+    }
     return NextResponse.json({ erro: String(e) }, { status: 400 });
   }
 }
