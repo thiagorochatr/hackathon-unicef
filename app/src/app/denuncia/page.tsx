@@ -9,6 +9,8 @@ import {
   type IdentidadeLocal,
 } from "@/lib/zk/identidade";
 import { gerarProva, type ProvaGerada } from "@/lib/zk/prova";
+import { obterApelido } from "@/lib/zk/apelidoCego";
+import { CRIANCA_FICTICIA } from "@/lib/fixtures";
 
 interface Grupo {
   endereco: string;
@@ -41,7 +43,6 @@ export default function TelaDenuncia() {
   const [peso, setPeso] = useState<Peso>(2);
   const [identidade, setIdentidade] = useState<IdentidadeLocal | null>(null);
   const [grupo, setGrupo] = useState<Grupo | null>(null);
-  const [apelido, setApelido] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState<number | null>(null);
   const [prova, setProva] = useState<ProvaGerada | null>(null);
   const [registro, setRegistro] = useState<Registro | null>(null);
@@ -63,7 +64,6 @@ export default function TelaDenuncia() {
         if (r.erro) throw new Error(r.erro);
         setIdentidade(id);
         setGrupo(r.grupo);
-        setApelido(r.apelido);
         setPeriodo(r.periodo);
       } catch (e) {
         if (vivo) setErro(String(e instanceof Error ? e.message : e));
@@ -109,11 +109,14 @@ export default function TelaDenuncia() {
   }
 
   async function provar() {
-    if (!identidade || !grupo || !apelido || periodo == null) return;
+    if (!identidade || !grupo || periodo == null) return;
     setOcupado("provar");
     setErro(null);
     limpar();
     try {
+      // O apelido é calculado aqui, por consulta embaralhada: o identificador da
+      // criança não sai deste navegador em momento nenhum.
+      const apelido = await obterApelido(CRIANCA_FICTICIA.identificador);
       setProva(
         await gerarProva(
           identidade.segredo,

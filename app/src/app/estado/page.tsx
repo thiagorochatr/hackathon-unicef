@@ -56,7 +56,13 @@ export default function TelaEstado() {
             {
               t: "Apelido da criança calculado com chave",
               e: "funciona de verdade",
-              d: "HMAC-SHA256 com uma chave de serviço, e não um resumo simples do CPF — senão qualquer um testaria os cem bilhões de CPFs possíveis até descobrir de quem é cada apelido.",
+              d: "Não é um resumo simples do CPF — senão qualquer um testaria os cem bilhões possíveis até descobrir de quem é cada apelido. Entra uma chave de serviço no meio, e sem ela esse teste não é possível.",
+              ok: true,
+            },
+            {
+              t: "Apontar a criança sem contar a ninguém qual é",
+              e: "funciona de verdade",
+              d: "Quem emite um sinal protegido calcula o apelido no próprio navegador, por consulta embaralhada (OPRF, RFC 9497). O identificador da criança não sai do aparelho: quem tem a chave faz a conta pedida sem descobrir sobre quem, e como o embaralhamento muda a cada vez, duas perguntas sobre a mesma criança chegam como valores sem relação. O resultado é idêntico ao que o sistema do órgão calcularia direto — é essa igualdade que faz os dois tipos de sinal se encontrarem no cruzamento.",
               ok: true,
             },
             {
@@ -102,9 +108,15 @@ export default function TelaEstado() {
               ok: false,
             },
             {
-              t: "Apontar a criança sem entregar a chave do apelido",
+              t: "Chave do apelido repartida entre instituições",
               e: "no plano",
-              d: "Hoje quem calcula o apelido é o servidor, então o profissional precisa dizer a ele de qual criança se trata. Na versão completa esse cálculo é feito em conjunto, de um jeito em que nem quem calcula descobre qual criança foi consultada. É também o que permitiria limitar o sinal por criança em vez de por mês.",
+              d: "A chave não vaza nas consultas, mas continua inteira em um lugar só: quem a detém consegue calcular o apelido de um identificador que já conheça. Na versão completa ela é repartida, e é preciso um número mínimo de instituições para qualquer cálculo acontecer.",
+              ok: false,
+            },
+            {
+              t: "Limite de sinal protegido por criança, e não por mês",
+              e: "no plano",
+              d: "Hoje cada credenciado emite um sinal protegido por setor por mês. Ligar o limite à criança poria na rede um valor estável dela, permitindo juntar todos os sinais sobre a mesma pessoa ao longo dos anos — e é justamente isso que este projeto não faz. Resolver exige um caminho que ainda não construímos.",
               ok: false,
             },
           ].map((i) => (

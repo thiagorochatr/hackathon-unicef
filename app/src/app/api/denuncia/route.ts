@@ -67,11 +67,9 @@ export async function GET(req: Request) {
       grupo: await lerGrupo(setor),
       municipioIbge: MUNICIPIO_IBGE,
       periodo: periodoAtual(),
-      // O apelido da criança da demonstração. Vai para o navegador porque quem
-      // emite o sinal precisa dizer sobre quem ele é — e quem emite já conhece
-      // a criança. O que o navegador não recebe, e nunca recebe, é a chave que
-      // gera o apelido.
-      apelido: apelidoDaCrianca(CRIANCA_FICTICIA.identificador),
+      // O apelido **não** vai daqui. Quem emite o sinal protegido o calcula no
+      // próprio navegador, por consulta embaralhada, para não precisar contar a
+      // ninguém de qual criança se trata.
     });
   } catch (e) {
     return NextResponse.json({ erro: String(e) }, { status: 500 });

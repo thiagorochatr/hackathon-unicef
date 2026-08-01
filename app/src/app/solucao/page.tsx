@@ -159,12 +159,18 @@ export default function TelaSolucao() {
             </p>
             <p className="text-sm text-[var(--texto-2)]">
               Serve para o problema que mais trava a rede hoje: o professor que
-              desconfia e não denuncia com medo de retaliação. Com isso ele prova que{" "}
+              desconfia e não avisa com medo de retaliação. Com isso ele prova que{" "}
               <strong className="text-[var(--texto)]">
-                é um professor daquela escola
+                é um profissional credenciado da educação daquele município
               </strong>{" "}
-              — logo a denúncia vale — sem que ninguém descubra{" "}
-              <strong className="text-[var(--texto)]">qual</strong> professor foi.
+              — logo o sinal dele vale — sem que ninguém descubra{" "}
+              <strong className="text-[var(--texto)]">qual</strong> profissional foi.
+            </p>
+            <p className="text-sm text-[var(--texto-2)]">
+              Repare que isso não cria um caminho separado: a prova é a{" "}
+              <strong className="text-[var(--texto)]">porta de entrada</strong> do mesmo
+              cruzamento. Quem emite continua dizendo de que criança se trata, e o sinal
+              soma com os dos outros setores como qualquer outro.
             </p>
             <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
               Tem um efeito colateral importante: uma prova dessas continua sem revelar
@@ -179,9 +185,11 @@ export default function TelaSolucao() {
       <section className="space-y-4">
         <h2 className="rotulo">Como funciona, do começo ao fim</h2>
         <div className="grid items-stretch gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
-          <Caixa titulo="1 · Os órgãos" cor="var(--c-saude)">
-            UBS, escola e CRAS mandam um sinal cifrado, ligado a um apelido da criança.
-            O nome, o prontuário e o relato ficam onde sempre estiveram.
+          <Caixa titulo="1 · Os setores" cor="var(--c-saude)">
+            Saúde, educação e assistência mandam um sinal cifrado, ligado a um apelido
+            da criança. O nome, o prontuário e o relato ficam onde sempre estiveram. O
+            sinal pode vir do sistema do órgão ou de um profissional que provou ser
+            credenciado sem se identificar.
           </Caixa>
           <Seta />
           <Caixa titulo="2 · A conta às cegas">
@@ -190,8 +198,8 @@ export default function TelaSolucao() {
           </Caixa>
           <Seta />
           <Caixa titulo="3 · O alerta" cor="var(--c-creas)">
-            Se dois ou mais sinais coincidem, sai um alerta. Um só sinal não vira nada —
-            e nada é registrado.
+            A soma precisa chegar a 2. Observar pesa 1 e não vira nada sozinho; afirmar
+            pesa 2 e basta. Abaixo do limite nada é registrado.
           </Caixa>
         </div>
 
@@ -215,11 +223,15 @@ export default function TelaSolucao() {
 
         <div className="cartao p-4">
           <p className="text-sm">
-            <strong>Em paralelo, a denúncia protegida.</strong>{" "}
+            <strong>Observar e afirmar não valem a mesma coisa.</strong>{" "}
             <span className="text-[var(--texto-2)]">
-              Um profissional pode acionar a rede provando que tem o direito de
-              denunciar, sem se identificar. A denúncia entra no mesmo fluxo e ganha
-              prazo e responsável, como qualquer outra.
+              Um apontamento diz &ldquo;vi algo que sozinho não conclui nada&rdquo; e
+              pesa 1: só vira caso se outro setor também tiver visto. Uma denúncia diz
+              &ldquo;estou afirmando que há risco&rdquo;, pesa 2 e basta sozinha — porque
+              quem vence o medo de denunciar não pode depender da sorte de outro setor
+              ter registrado alguma coisa. O peso vai{" "}
+              <strong className="text-[var(--texto)]">dentro do envelope</strong>,
+              cifrado: quem faz a soma não distingue um do outro.
             </span>
           </p>
         </div>
@@ -329,6 +341,57 @@ export default function TelaSolucao() {
           confere sozinho — sem pedir acesso a sistema nenhum, e sem precisar confiar em
           quem seria cobrado.
         </p>
+      </section>
+
+      {/* O quântico */}
+      <section className="space-y-4">
+        <h2 className="rotulo">E quando existir computador quântico</h2>
+        <p className="max-w-3xl text-sm text-[var(--texto-2)]">
+          Esta é a pergunta certa para um sistema cujo registro é permanente e cujos
+          usuários são crianças. A resposta tem duas metades, e elas são bem
+          diferentes.
+        </p>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--ok)]">
+              O ANONIMATO NÃO CAI — NUNCA
+            </p>
+            <p className="text-sm text-[var(--texto-2)]">
+              A prova que o profissional gera é{" "}
+              <strong className="text-[var(--texto)]">
+                independente de quem a produziu
+              </strong>
+              . Não é &ldquo;difícil de ligar a uma pessoa&rdquo;: a informação
+              simplesmente não está lá. Um computador quântico em 2080 olhando uma prova
+              de hoje não aprende nada sobre quem denunciou, porque não há o que
+              aprender.
+            </p>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              É por isso que guardar prova é seguro para sempre, e guardar segredo
+              trancado não é. A mesma razão pela qual nenhum envelope cifrado sobe para a
+              rede.
+            </p>
+          </div>
+
+          <div className="cartao space-y-3 p-6">
+            <p className="text-xs font-semibold tracking-wide text-[var(--alerta)]">
+              O QUE CAI É OUTRA COISA
+            </p>
+            <p className="text-sm text-[var(--texto-2)]">
+              O que um computador quântico quebraria é a capacidade de{" "}
+              <strong className="text-[var(--texto)]">forjar provas novas</strong> — de
+              alguém se dizer credenciado sem ser. Isso é problema para frente, não para
+              trás: ninguém que avisou antes fica exposto, e a troca de esquema acompanha
+              o roteiro da própria rede que usamos.
+            </p>
+            <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
+              A diferença importa porque muita gente trata as duas metades como uma só.
+              Aqui elas têm prazos opostos: uma não vence nunca, a outra vence junto com
+              todo mundo.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-3">

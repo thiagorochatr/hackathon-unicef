@@ -24,7 +24,8 @@ horários.
 | Programa na Solana devnet (abrir, passar adiante, aceitar, ir ao MP, encerrar, marcar presença) | **real e verificável no explorer** |
 | Telas de custódia lendo o caso da rede | **real** — a tela pergunta à rede a cada 3 s |
 | Cruzamento cifrado dos sinais | **real** — Microsoft SEAL (BFV), soma feita sem nenhuma chave secreta |
-| Apelido da criança | **real** — HMAC-SHA256 com chave de serviço, não um resumo simples do CPF |
+| Apelido da criança | **real** — com chave de serviço, não um resumo simples do CPF |
+| Apontar a criança sem contar qual é | **real** — OPRF (RFC 9497) sobre ristretto255; o identificador não sai do navegador de quem emite |
 | Chave repartida entre órgãos | ainda não — a chave do comitê existe inteira em um lugar só |
 | Comparação dentro do envelope | ainda não — hoje o comitê descobre quantos sinais coincidiram |
 | Marcar presença de cada órgão | **real** — um selo por período gravado na Solana; a falta dele vira alerta |
@@ -45,7 +46,7 @@ src/lib/fhe/parametros.ts     parâmetros públicos do esquema (BFV, grau 4096)
 src/lib/fhe/comite.ts         única parte com a chave — ela NÃO é exportada daqui
 src/lib/fhe/orgao.ts          fecha envelopes usando só a chave pública
 src/lib/fhe/noDeCruzamento.ts soma envelopes; não importa `comite` em lugar nenhum
-src/lib/pseudonimo.ts         apelido da criança via HMAC-SHA256 com chave
+src/lib/pseudonimo.ts         apelido da criança via OPRF, com chave de serviço
 ```
 
 E, do lado da denúncia protegida:
