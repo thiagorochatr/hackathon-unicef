@@ -20,7 +20,19 @@ export type Biblioteca = Awaited<ReturnType<typeof SEAL>>;
 export type Contexto = ReturnType<Biblioteca["Context"]>;
 export type Cifra = ReturnType<Biblioteca["CipherText"]>;
 
-const GRAU = 4096;
+/**
+ * Grau 8192, e não 4096, por causa da comparação dentro do envelope.
+ *
+ * Comparar exige multiplicar dois envelopes e depois mascarar o resultado com um
+ * fator sorteado — e cada operação dessas gasta orçamento de ruído. Com 4096 o
+ * orçamento zerava no mascaramento e o resultado virava lixo: mesmo uma soma
+ * zero abria como um número qualquer, ou seja, alerta falso. Com 8192 sobram
+ * 89 bits de folga.
+ *
+ * O preço é o envelope dobrar de tamanho. Para a demonstração isso até ajuda —
+ * o que aparece na tela fica ainda mais evidentemente ilegível.
+ */
+const GRAU = 8192;
 const BITS_TEXTO_ABERTO = 20;
 
 export interface Nucleo {
@@ -28,6 +40,8 @@ export interface Nucleo {
   contexto: Contexto;
   codificador: ReturnType<Biblioteca["BatchEncoder"]>;
   avaliador: ReturnType<Biblioteca["Evaluator"]>;
+  /** Módulo do texto aberto. É primo, e é sobre ele que o fator é sorteado. */
+  moduloAberto: number;
 }
 
 /**
@@ -59,12 +73,28 @@ async function montar(): Promise<Nucleo> {
     contexto,
     codificador: seal.BatchEncoder(contexto),
     avaliador: seal.Evaluator(contexto),
+    moduloAberto: Number(contexto.firstContextData.parms.plainModulus.value),
   };
 }
 
 export function nucleo(): Promise<Nucleo> {
   global_.__fheNucleo ??= montar();
   return global_.__fheNucleo;
+}
+
+/**
+ * Sorteia o fator que mascara o resultado da comparação.
+ *
+ * Precisa ser não nulo e uniforme sobre o corpo: é ele que faz o comitê receber
+ * um número sem relação nenhuma com a contagem. Se fosse zero, toda comparação
+ * responderia "não".
+ */
+export function fatorDeMascaramento(modulo: number): number {
+  const bruto = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(bruto);
+  } while (bruto[0] % modulo === 0);
+  return bruto[0] % modulo;
 }
 
 /**

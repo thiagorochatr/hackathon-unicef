@@ -1,5 +1,5 @@
 import "server-only";
-import { carregarCifra, nucleo } from "./parametros";
+import { carregarCifra, fatorDeMascaramento, nucleo } from "./parametros";
 import type { Setor } from "../tipos";
 
 /**
@@ -60,19 +60,84 @@ export function limpar(apelido?: string): void {
  * Soma os envelopes sem abrir nenhum. O resultado continua fechado — quem
  * chamar esta função recebe outro envelope, não um número.
  */
-export async function somar(apelido: string): Promise<string | null> {
+async function somar(apelido: string) {
   const envelopes = listar(apelido);
   if (envelopes.length === 0) return null;
 
   const { avaliador } = await nucleo();
-
   const soma = await carregarCifra(envelopes[0].cifraB64);
   for (const e of envelopes.slice(1)) {
     const parcela = await carregarCifra(e.cifraB64);
     avaliador.add(soma, parcela, soma);
     parcela.delete();
   }
-  const b64 = soma.save();
+  return soma;
+}
+
+/**
+ * Compara a soma com o limite **sem abrir nada**, e devolve o resultado ainda
+ * fechado.
+ *
+ * ## Como comparar sem enxergar
+ *
+ * A conta é `r · s · (s − 1)`, tudo dentro do envelope:
+ *
+ * - se a soma é 0 ou 1, um dos fatores é zero e o resultado é **zero**;
+ * - se a soma é 2 ou mais, nenhum fator é zero e o resultado é `r` vezes algo,
+ *   ou seja, um número sorteado.
+ *
+ * Quem abrir isso descobre se é zero ou não, e mais nada. Sem o fator `r`, um
+ * resultado 2 significaria soma 2 e um resultado 6 significaria soma 3 — a
+ * contagem vazaria pelo próprio valor. Com ele, 2 e 3 e 4 produzem números sem
+ * relação nenhuma entre si.
+ *
+ * Para um limite diferente de 2 seriam mais fatores, `s · (s−1) · (s−2)…`, e
+ * cada multiplicação a mais gasta orçamento de ruído. O parâmetro escolhido
+ * comporta o limite 2 com folga larga.
+ *
+ * As chaves de relinearização vêm por parâmetro, e não de um `import` do
+ * comitê. Elas são públicas — servem para arrumar o envelope depois de
+ * multiplicar, e não abrem nada — mas mesmo assim entram por fora, para que a
+ * frase do topo deste arquivo continue conferível de relance.
+ */
+export async function avaliarLimiar(
+  apelido: string,
+  limiar: number,
+  relinearizacaoB64: string,
+): Promise<string | null> {
+  const soma = await somar(apelido);
+  if (!soma) return null;
+
+  const { seal, contexto, codificador, avaliador, moduloAberto } = await nucleo();
+
+  const relin = seal.RelinKeys();
+  relin.load(contexto, relinearizacaoB64);
+
+  // s · (s−1) · … · (s − limiar + 1), começando por uma cópia da soma.
+  const produto = await carregarCifra(soma.save());
+  for (let i = 1; i < limiar; i += 1) {
+    const constante = codificador.encode(Int32Array.from([i]));
+    if (!constante) throw new Error("falha ao preparar a comparação");
+    const deslocado = seal.CipherText();
+    avaliador.subPlain(soma, constante, deslocado);
+    constante.delete();
+
+    avaliador.multiply(produto, deslocado, produto);
+    avaliador.relinearize(produto, relin, produto);
+    deslocado.delete();
+  }
+
+  // O mascaramento: sem ele, o valor aberto entregaria a contagem.
+  const fator = codificador.encode(
+    Int32Array.from([fatorDeMascaramento(moduloAberto)]),
+  );
+  if (!fator) throw new Error("falha ao mascarar a comparação");
+  avaliador.multiplyPlain(produto, fator, produto);
+  fator.delete();
+
+  const b64 = produto.save();
+  produto.delete();
   soma.delete();
+  relin.delete();
   return b64;
 }

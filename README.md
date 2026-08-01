@@ -27,7 +27,7 @@ horários.
 | Apelido da criança | **real** — com chave de serviço, não um resumo simples do CPF |
 | Apontar a criança sem contar qual é | **real** — OPRF (RFC 9497) sobre ristretto255; o identificador não sai do navegador de quem emite |
 | Chave repartida entre órgãos | ainda não — a chave do comitê existe inteira em um lugar só |
-| Comparação dentro do envelope | ainda não — hoje o comitê descobre quantos sinais coincidiram |
+| Comparação dentro do envelope | **real** — o comitê aprende só "passou" ou "não passou", nunca a contagem |
 | Marcar presença de cada órgão | **real** — um selo por período gravado na Solana; a falta dele vira alerta |
 | Sinal protegido (ZK) | **real** — prova Semaphore gerada no navegador em ~0,6 s e conferida on-chain por ~110 mil unidades de computação |
 | Apontamento (peso 1) × denúncia (peso 2) | **real** — o peso vai cifrado no envelope; uma denúncia sozinha atinge o limiar |
@@ -66,9 +66,13 @@ quebraria é a solidez, ou seja, forjar provas novas. Problema para frente, não
 A chave de verificação vem da **cerimônia pública do Semaphore**, e não de uma cerimônia
 nossa. Ninguém precisa confiar em quem gerou aqueles parâmetros, porque não fomos nós.
 
-Cada envelope tem cerca de 118 mil letras. A tela do cruzamento mostra a mesma
-soma aberta de dois jeitos: com a chave certa dá o número de sinais que
-coincidiram; com uma chave qualquer dá um número sem sentido.
+Cada envelope tem centenas de milhares de letras. A comparação com o limite também
+acontece dentro do envelope: o nó calcula `r · s · (s−1)` sobre os envelopes fechados,
+com `r` sorteado. Dá zero quando a soma é 0 ou 1, e um número aleatório quando é 2 ou
+mais. **O comitê aprende exatamente um bit** — passou ou não passou — e não a contagem.
+
+Dá para conferir isso na tela: o mesmo conjunto de sinais, cruzado duas vezes, devolve
+números diferentes e o mesmo veredito.
 
 ## Como rodar
 

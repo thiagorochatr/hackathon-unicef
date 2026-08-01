@@ -64,8 +64,9 @@ export async function emitirSinal(instituicao: Papel): Promise<SinalNoNo[]> {
 }
 
 export interface ResultadoCruzamento {
-  contagem: number;
   alerta: boolean;
+  /** O que o comitê abriu. Não é a contagem: é ruído mascarado. */
+  aberto: number;
   limiar: number;
   pedacoDaSoma: string;
   tamanhoDaSoma: number;

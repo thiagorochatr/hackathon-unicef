@@ -16,8 +16,14 @@ import { carregarCifra, nucleo } from "./parametros";
 
 interface Chaves {
   publicaB64: string;
-  abrirSoma: (somaB64: string) => Promise<number>;
-  abrirComOutraChave: (somaB64: string) => Promise<number>;
+  /**
+   * Chaves de relinearização. São **públicas**: servem só para arrumar o
+   * envelope depois de uma multiplicação, e não abrem nada. O nó de cruzamento
+   * precisa delas para conseguir comparar sem ter a chave secreta.
+   */
+  relinearizacaoB64: string;
+  abrir: (cifraB64: string) => Promise<number>;
+  abrirComOutraChave: (cifraB64: string) => Promise<number>;
 }
 
 const global_ = globalThis as unknown as { __fheComite?: Promise<Chaves> };
@@ -28,6 +34,7 @@ async function gerar(): Promise<Chaves> {
   const gerador = seal.KeyGenerator(contexto);
   const secreta = gerador.secretKey();
   const publica = gerador.createPublicKey();
+  const relinearizacao = gerador.createRelinKeys();
   const decifrador = seal.Decryptor(contexto, secreta);
 
   // Uma segunda chave, sem nenhuma relação com a primeira, usada só para
@@ -37,7 +44,9 @@ async function gerar(): Promise<Chaves> {
   const decifradorIntruso = seal.Decryptor(contexto, geradorIntruso.secretKey());
 
   const publicaB64 = publica.save();
+  const relinearizacaoB64 = relinearizacao.save();
   publica.delete();
+  relinearizacao.delete();
   gerador.delete();
   geradorIntruso.delete();
 
@@ -56,8 +65,9 @@ async function gerar(): Promise<Chaves> {
 
   return {
     publicaB64,
-    abrirSoma: (somaB64) => abrirCom(decifrador, somaB64),
-    abrirComOutraChave: (somaB64) => abrirCom(decifradorIntruso, somaB64),
+    relinearizacaoB64,
+    abrir: (cifraB64) => abrirCom(decifrador, cifraB64),
+    abrirComOutraChave: (cifraB64) => abrirCom(decifradorIntruso, cifraB64),
   };
 }
 
@@ -72,24 +82,38 @@ export async function chavePublica(): Promise<string> {
 }
 
 /**
- * Abre **apenas a soma** e responde se o limite foi alcançado.
- *
- * Limitação desta versão, dita na cara: aqui o comitê fica sabendo quantos
- * sinais coincidiram. Na versão completa a comparação também acontece dentro do
- * envelope, e só sai um "sim" ou "não".
+ * Isto sai para o nó de cruzamento. Não é segredo: com estas chaves dá para
+ * multiplicar envelopes, e não para abrir nenhum.
  */
-export async function avaliarSoma(
-  somaB64: string,
-  limite: number,
-): Promise<{ contagem: number; alerta: boolean }> {
-  const contagem = await (await chaves()).abrirSoma(somaB64);
-  return { contagem, alerta: contagem >= limite };
+export async function chavesDeRelinearizacao(): Promise<string> {
+  return (await chaves()).relinearizacaoB64;
+}
+
+/**
+ * Abre o resultado da comparação e responde apenas **sim** ou **não**.
+ *
+ * O que chega aqui não é a soma: é a soma já comparada com o limite, dentro do
+ * envelope, e mascarada com um fator sorteado pelo nó. Por isso o número que sai
+ * da abertura não diz nada além de ser zero ou não ser.
+ *
+ * O comitê aprende exatamente um bit. Não sabe se foram dois sinais fracos ou
+ * uma denúncia sozinha, nem quantos setores participaram. Antes ele sabia a
+ * contagem; era a última coisa que ele aprendia além do necessário.
+ *
+ * O número aberto vai junto só para a tela poder mostrá-lo — é ruído com
+ * significado nenhum, e mostrá-lo é a forma de deixar isso evidente.
+ */
+export async function avaliarVeredito(
+  vereditoB64: string,
+): Promise<{ alerta: boolean; aberto: number }> {
+  const aberto = await (await chaves()).abrir(vereditoB64);
+  return { alerta: aberto !== 0, aberto };
 }
 
 /**
  * Demonstração de que o texto cifrado é cifrado mesmo: a mesma soma, aberta com
  * uma chave diferente, devolve um número sem sentido.
  */
-export async function abrirComChaveErrada(somaB64: string): Promise<number> {
-  return (await chaves()).abrirComOutraChave(somaB64);
+export async function abrirComChaveErrada(cifraB64: string): Promise<number> {
+  return (await chaves()).abrirComOutraChave(cifraB64);
 }

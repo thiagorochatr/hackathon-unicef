@@ -159,7 +159,7 @@ export default function TelaCruzamento() {
           >
             <div>
               <p className="rotulo mb-1">
-                A soma, ainda fechada ·{" "}
+                A comparação, ainda fechada ·{" "}
                 {resultado.tamanhoDaSoma.toLocaleString("pt-BR")} letras
               </p>
               <p className="cifra max-h-16 overflow-y-auto">{resultado.pedacoDaSoma}…</p>
@@ -170,9 +170,13 @@ export default function TelaCruzamento() {
                 <p className="text-[0.625rem] font-semibold text-[var(--ok)]">
                   ABERTA PELO COMITÊ, QUE TEM A CHAVE
                 </p>
-                <p className="mt-1 font-mono text-2xl">{resultado.contagem}</p>
+                <p className="mt-1 font-mono text-2xl">
+                  {resultado.aberto.toLocaleString("pt-BR")}
+                </p>
                 <p className="text-xs text-[var(--texto-2)]">
-                  limite para virar alerta: {resultado.limiar}
+                  {resultado.alerta
+                    ? "não é zero → passou do limite"
+                    : "é zero → não passou"}
                 </p>
               </div>
               <div className="rounded-lg border border-[color-mix(in_srgb,var(--perigo)_40%,transparent)] bg-[var(--fundo-2)] p-3">
@@ -185,7 +189,7 @@ export default function TelaCruzamento() {
                     : "—"}
                 </p>
                 <p className="text-xs text-[var(--texto-2)]">
-                  a mesma soma, sem sentido nenhum
+                  a mesma comparação, sem sentido nenhum
                 </p>
               </div>
             </div>
@@ -217,12 +221,10 @@ export default function TelaCruzamento() {
       </section>
 
       <p className="text-xs text-[var(--texto-3)]">
-        O que ainda falta, dito na cara: nesta versão o comitê descobre{" "}
-        <strong>quantos</strong>{" "}
-        sinais coincidiram. Na versão completa a comparação
-        também acontece dentro do envelope, e só sai um &ldquo;sim&rdquo; ou
-        &ldquo;não&rdquo;. E a chave, que hoje está inteira num lugar só, passa a ser
-        repartida entre vários órgãos.
+        O que ainda falta, dito na cara: a chave do comitê está inteira em um lugar
+        só. Ela abre apenas um &ldquo;sim&rdquo; ou &ldquo;não&rdquo;, e não a
+        contagem — mas na versão completa ela é repartida entre vários órgãos, e é
+        preciso um número mínimo deles concordando para abrir até isso.
       </p>
     </div>
   );

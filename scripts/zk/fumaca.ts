@@ -114,9 +114,9 @@ async function main() {
 
   // 5. O cruzamento.
   const cruz = await post("/api/cruzamento", { acao: "cruzar" });
-  console.log(`\nsoma aberta pelo comitê: ${cruz.contagem} (limiar ${cruz.limiar})`);
+  console.log(`\nabriu pelo comitê: ${cruz.aberto} (limiar ${cruz.limiar})`);
   console.log(`com a chave errada: ${cruz.comChaveErrada}`);
-  console.log(`alerta: ${cruz.alerta ? "SIM" : "não"}\n`);
+  console.log(`veredito: ${cruz.alerta ? "SIM" : "não"}\n`);
 }
 
 main()

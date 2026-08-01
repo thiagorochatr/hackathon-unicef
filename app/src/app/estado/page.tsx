@@ -50,7 +50,7 @@ export default function TelaEstado() {
             {
               t: "Cruzar sinais sem abrir os envelopes",
               e: "funciona de verdade",
-              d: "Criptografia homomórfica (Microsoft SEAL, esquema BFV). Cada envelope tem cerca de 118 mil letras; a soma é feita sem nenhuma chave secreta. A tela mostra a mesma soma aberta com a chave certa e com uma chave errada — a errada devolve um número sem sentido.",
+              d: "Criptografia homomórfica (Microsoft SEAL, esquema BFV). Cada envelope tem centenas de milhares de letras; a soma é feita sem nenhuma chave secreta. A tela mostra o mesmo resultado aberto com a chave certa e com uma chave errada — a errada devolve um número sem sentido.",
               ok: true,
             },
             {
@@ -73,9 +73,9 @@ export default function TelaEstado() {
             },
             {
               t: "Comparação feita dentro do envelope",
-              e: "no plano",
-              d: "Hoje o comitê descobre quantos sinais coincidiram. Na versão completa só sai um \u201csim\u201d ou \u201cnão\u201d.",
-              ok: false,
+              e: "funciona de verdade",
+              d: "A comparação com o limite acontece sem abrir nada, e o resultado sai mascarado por um fator sorteado. O comitê aprende exatamente um bit: passou ou não passou. Não sabe se foram dois apontamentos ou uma denúncia sozinha, nem quantos setores participaram. Dá para ver na tela: o mesmo conjunto de sinais, cruzado duas vezes, devolve números diferentes e o mesmo veredito.",
+              ok: true,
             },
             {
               t: "Cada órgão marca presença na rede",

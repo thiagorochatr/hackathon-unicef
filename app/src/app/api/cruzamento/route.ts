@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { avaliarSoma, abrirComChaveErrada, chavePublica } from "@/lib/fhe/comite";
+import {
+  avaliarVeredito,
+  abrirComChaveErrada,
+  chavePublica,
+  chavesDeRelinearizacao,
+} from "@/lib/fhe/comite";
 import * as no from "@/lib/fhe/noDeCruzamento";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { CRIANCA_FICTICIA, LIMIAR } from "@/lib/fixtures";
@@ -105,21 +110,36 @@ export async function POST(req: Request) {
        * O nó soma os envelopes sem abrir nenhum e entrega a soma — ainda
        * fechada — ao comitê, que é quem tem a chave.
        */
+      /**
+       * O nó compara a soma com o limite **dentro do envelope** e entrega ao
+       * comitê um resultado que só pode ser zero ou não-zero. O comitê abre e
+       * aprende exatamente um bit: passou ou não passou.
+       *
+       * Ele não descobre quantos setores participaram, nem se foi uma denúncia
+       * sozinha ou dois apontamentos. Antes descobria a contagem — era a última
+       * coisa que ele aprendia além do necessário.
+       */
       case "cruzar": {
-        const soma = await no.somar(apelido());
-        if (!soma) {
+        const veredito = await no.avaliarLimiar(
+          apelido(),
+          LIMIAR,
+          await chavesDeRelinearizacao(),
+        );
+        if (!veredito) {
           return NextResponse.json({ erro: "nenhum sinal recebido" }, { status: 400 });
         }
-        const { contagem, alerta } = await avaliarSoma(soma, LIMIAR);
-        const comChaveErrada = await abrirComChaveErrada(soma);
+        const { alerta, aberto } = await avaliarVeredito(veredito);
+        const comChaveErrada = await abrirComChaveErrada(veredito);
 
         return NextResponse.json({
-          contagem,
           alerta,
+          // Vai para a tela só para se ver que não significa nada: é o produto
+          // mascarado por um fator sorteado, e não a contagem.
+          aberto,
           limiar: LIMIAR,
-          pedacoDaSoma: soma.slice(0, PEDACO),
-          tamanhoDaSoma: soma.length,
-          // O mesmo envelope, aberto com outra chave, devolve um número sem
+          pedacoDaSoma: veredito.slice(0, PEDACO),
+          tamanhoDaSoma: veredito.length,
+          // O mesmo envelope, aberto com outra chave, devolve outro número sem
           // sentido. É a prova de que o sigilo não depende de boa vontade.
           comChaveErrada,
         });
