@@ -3,10 +3,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-custodia = "FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E"
+custodia = "EasKv552hhhCGZEV6KS9VUENEVGEgwhMxV59W9xoRc7h"
 
 [programs.devnet]
-custodia = "FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E"
+custodia = "EasKv552hhhCGZEV6KS9VUENEVGEgwhMxV59W9xoRc7h"
 
 [registry]
 url = "https://api.apr.dev"

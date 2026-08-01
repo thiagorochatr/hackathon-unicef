@@ -17,7 +17,10 @@
 use anchor_lang::prelude::*;
 use solana_sha256_hasher::hashv;
 
-declare_id!("FsvcQn5BsZuC1CrqMtxNGFhohWFVxJq4jDnzwKgw493E");
+mod chave_verificacao;
+pub mod zk;
+
+declare_id!("EasKv552hhhCGZEV6KS9VUENEVGEgwhMxV59W9xoRc7h");
 
 #[program]
 pub mod custodia {
@@ -71,38 +74,120 @@ pub mod custodia {
         agente_hash: [u8; 32],
         prazo_seg: i64,
     ) -> Result<()> {
-        require!(prazo_seg > 0, ErroCustodia::PrazoInvalido);
-        require!(responsavel != Pubkey::default(), ErroCustodia::DestinoInvalido);
-        let agora = Clock::get()?.unix_timestamp;
         let emissor = ctx.accounts.autoridade.key();
-        let custodiante = responsavel;
-
-        let caso = &mut ctx.accounts.caso;
-        caso.alerta_id = alerta_id;
-        caso.custodiante = custodiante;
-        caso.pendente_para = None;
-        caso.agente_hash = agente_hash;
-        caso.estado = Estado::Aberto;
-        caso.prazo = agora
-            .checked_add(prazo_seg)
-            .ok_or(ErroCustodia::PrazoInvalido)?;
-        caso.criado_em = agora;
-        caso.trilha_hash = [0u8; 32];
-        caso.eventos = 0;
-        caso.bump = ctx.bumps.caso;
-
-        caso.avancar_trilha(DISC_ABERTURA, &emissor, agora)?;
-        caso.checar_invariante()?;
-
-        emit!(EventoCustodia {
+        ctx.accounts.caso.nascer(
             alerta_id,
-            tipo: DISC_ABERTURA,
-            ator: emissor,
-            destino: Some(custodiante),
-            estado: caso.estado,
-            prazo: caso.prazo,
-            trilha_hash: caso.trilha_hash,
-            ts: agora,
+            responsavel,
+            agente_hash,
+            prazo_seg,
+            Origem::Cruzamento,
+            ctx.bumps.caso,
+            &emissor,
+        )
+    }
+
+    /// Abre o caso a partir de uma **denúncia protegida**.
+    ///
+    /// Repare no que não existe aqui: nenhuma assinatura de instituição. Quem
+    /// autoriza não é ninguém — é a prova, conferida pela própria rede. O único
+    /// signatário é quem paga a taxa, e ele não sabe de quem é a prova que está
+    /// repassando.
+    ///
+    /// Esse é o ponto: o profissional que teme retaliação consegue fazer o caso
+    /// existir, com dono e prazo, sem se identificar para ninguém — nem para
+    /// nós.
+    pub fn abrir_caso_por_denuncia(
+        ctx: Context<AbrirCasoPorDenuncia>,
+        alerta_id: [u8; 32],
+        prova: [u8; zk::TAMANHO_PROVA],
+        anulador: [u8; 32],
+        periodo: u32,
+        agente_hash: [u8; 32],
+        prazo_seg: i64,
+    ) -> Result<()> {
+        let grupo = &ctx.accounts.grupo;
+
+        // A mensagem e o escopo não são parâmetros: o programa os recalcula.
+        // Se fossem parâmetros, quem repassa a transação poderia pegar uma prova
+        // legítima e usá-la para abrir um caso diferente, ou em outro período.
+        let entradas = zk::EntradasPublicas {
+            raiz: grupo.raiz,
+            anulador,
+            mensagem: zk::embaralhar(&alerta_id),
+            escopo: zk::embaralhar(&zk::valor_do_escopo(grupo.municipio_ibge, periodo)),
+        };
+        zk::conferir_prova(&prova, &entradas)?;
+
+        // O anulador vira uma conta. Se já existir, a criação falha sozinha e a
+        // denúncia repetida não passa — sem lista para percorrer nem varredura.
+        let agora = Clock::get()?.unix_timestamp;
+        let marca = &mut ctx.accounts.nulificador;
+        marca.usado_em = agora;
+        marca.bump = ctx.bumps.nulificador;
+
+        let ator = grupo.key();
+        ctx.accounts.caso.nascer(
+            alerta_id,
+            grupo.responsavel_padrao,
+            agente_hash,
+            prazo_seg,
+            Origem::DenunciaProtegida,
+            ctx.bumps.caso,
+            &ator,
+        )
+    }
+
+    /// Cadastra o grupo de profissionais credenciados de um município.
+    ///
+    /// Quem publica a raiz é o administrador. Numa implantação de verdade isso
+    /// sai do sistema de pessoal de cada instituição — está declarado como
+    /// simplificação de protótipo.
+    pub fn registrar_grupo(
+        ctx: Context<RegistrarGrupo>,
+        municipio_ibge: u32,
+        raiz: [u8; 32],
+        responsavel_padrao: Pubkey,
+        membros: u32,
+    ) -> Result<()> {
+        require!(
+            responsavel_padrao != Pubkey::default(),
+            ErroCustodia::DestinoInvalido
+        );
+        let grupo = &mut ctx.accounts.grupo;
+        grupo.municipio_ibge = municipio_ibge;
+        grupo.raiz = raiz;
+        grupo.responsavel_padrao = responsavel_padrao;
+        grupo.membros = membros;
+        grupo.bump = ctx.bumps.grupo;
+
+        emit!(EventoGrupo {
+            municipio_ibge,
+            raiz,
+            membros,
+            ts: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Move a raiz quando entra ou sai credenciado.
+    ///
+    /// O evento carrega a raiz nova junto: é isso que permite a qualquer pessoa
+    /// refazer a árvore do zero e conferir que ninguém foi inserido às
+    /// escondidas para poder denunciar sem ser da rede.
+    pub fn atualizar_raiz_grupo(
+        ctx: Context<AtualizarGrupo>,
+        raiz: [u8; 32],
+        membros: u32,
+    ) -> Result<()> {
+        let grupo = &mut ctx.accounts.grupo;
+        grupo.raiz = raiz;
+        grupo.membros = membros;
+
+        emit!(EventoGrupo {
+            municipio_ibge: grupo.municipio_ibge,
+            raiz,
+            membros,
+            ts: Clock::get()?.unix_timestamp,
         });
         Ok(())
     }
@@ -297,6 +382,7 @@ pub const DISC_TRANSFERENCIA: u8 = 2;
 pub const DISC_ACEITE: u8 = 3;
 pub const DISC_ESCALONAMENTO: u8 = 4;
 pub const DISC_DESFECHO: u8 = 5;
+pub const DISC_DENUNCIA: u8 = 6;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
 pub enum Estado {
@@ -305,6 +391,16 @@ pub enum Estado {
     EmAtendimento,
     Escalado,
     Encerrado,
+}
+
+/// Como o caso veio ao mundo. Muda quem assinou a abertura — e, na denúncia
+/// protegida, a resposta é "ninguém".
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub enum Origem {
+    /// Sinais de órgãos diferentes convergiram no cruzamento cifrado.
+    Cruzamento,
+    /// Um profissional credenciado provou que pode denunciar, sem se identificar.
+    DenunciaProtegida,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
@@ -353,10 +449,62 @@ pub struct Caso {
     /// Elo corrente da hash chain da trilha, verificável fora da cadeia.
     pub trilha_hash: [u8; 32],
     pub eventos: u16,
+    pub origem: Origem,
     pub bump: u8,
 }
 
 impl Caso {
+    /// A parte comum às duas formas de abrir um caso. O que muda entre elas é
+    /// só quem assinou — e a `origem` registra essa diferença de forma
+    /// permanente, para que depois ninguém precise adivinhar.
+    fn nascer(
+        &mut self,
+        alerta_id: [u8; 32],
+        custodiante: Pubkey,
+        agente_hash: [u8; 32],
+        prazo_seg: i64,
+        origem: Origem,
+        bump: u8,
+        ator: &Pubkey,
+    ) -> Result<()> {
+        require!(prazo_seg > 0, ErroCustodia::PrazoInvalido);
+        require!(custodiante != Pubkey::default(), ErroCustodia::DestinoInvalido);
+        let agora = Clock::get()?.unix_timestamp;
+
+        self.alerta_id = alerta_id;
+        self.custodiante = custodiante;
+        self.pendente_para = None;
+        self.agente_hash = agente_hash;
+        self.estado = Estado::Aberto;
+        self.prazo = agora
+            .checked_add(prazo_seg)
+            .ok_or(ErroCustodia::PrazoInvalido)?;
+        self.criado_em = agora;
+        self.trilha_hash = [0u8; 32];
+        self.eventos = 0;
+        self.origem = origem;
+        self.bump = bump;
+
+        let disc = match origem {
+            Origem::Cruzamento => DISC_ABERTURA,
+            Origem::DenunciaProtegida => DISC_DENUNCIA,
+        };
+        self.avancar_trilha(disc, ator, agora)?;
+        self.checar_invariante()?;
+
+        emit!(EventoCustodia {
+            alerta_id,
+            tipo: disc,
+            ator: *ator,
+            destino: Some(custodiante),
+            estado: self.estado,
+            prazo: self.prazo,
+            trilha_hash: self.trilha_hash,
+            ts: agora,
+        });
+        Ok(())
+    }
+
     fn avancar_trilha(&mut self, disc: u8, ator: &Pubkey, ts: i64) -> Result<()> {
         let anterior = self.trilha_hash;
         let disc_bytes = [disc];
@@ -383,6 +531,35 @@ impl Caso {
         );
         Ok(())
     }
+}
+
+/// O grupo de profissionais credenciados de um município.
+///
+/// Não guarda nome de ninguém: só a raiz da árvore. Saber a raiz não permite
+/// descobrir quem está dentro, e é contra ela que a prova é conferida.
+#[account]
+#[derive(InitSpace)]
+pub struct GrupoCredenciados {
+    pub municipio_ibge: u32,
+    pub raiz: [u8; 32],
+    /// Para quem vai o caso aberto por denúncia — CREAS ou Conselho Tutelar.
+    pub responsavel_padrao: Pubkey,
+    /// Quantos credenciados, só para o painel. Quanto maior, melhor o anonimato.
+    pub membros: u32,
+    pub bump: u8,
+}
+
+/// Marca que um anulador já foi usado.
+///
+/// A conta em si não guarda nada de útil — o que importa é ela **existir**. O
+/// endereço dela é derivado do anulador, então criar duas vezes é impossível, e
+/// é isso que impede a mesma pessoa de denunciar repetidamente no mesmo período
+/// sem que ninguém descubra quem ela é.
+#[account]
+#[derive(InitSpace)]
+pub struct Nullificador {
+    pub usado_em: i64,
+    pub bump: u8,
 }
 
 #[account]
@@ -465,6 +642,73 @@ pub struct AbrirCaso<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Abertura por denúncia protegida.
+///
+/// **Não existe `Signer` de instituição aqui.** Só o pagador da taxa, que pode
+/// ser qualquer chave e que não tem relação nenhuma com quem denunciou. Quem
+/// autoriza é a prova, e quem confere é o programa.
+#[derive(Accounts)]
+#[instruction(alerta_id: [u8; 32], prova: [u8; 256], anulador: [u8; 32])]
+pub struct AbrirCasoPorDenuncia<'info> {
+    #[account(
+        init,
+        payer = pagador,
+        space = 8 + Caso::INIT_SPACE,
+        seeds = [b"caso", alerta_id.as_ref()],
+        bump
+    )]
+    pub caso: Account<'info, Caso>,
+    #[account(
+        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes()],
+        bump = grupo.bump
+    )]
+    pub grupo: Account<'info, GrupoCredenciados>,
+    /// Falha na criação se o anulador já tiver sido usado. É a proteção contra
+    /// denúncia repetida, e ela não precisa saber quem é ninguém.
+    #[account(
+        init,
+        payer = pagador,
+        space = 8 + Nullificador::INIT_SPACE,
+        seeds = [b"nulificador", anulador.as_ref()],
+        bump
+    )]
+    pub nulificador: Account<'info, Nullificador>,
+    #[account(mut)]
+    pub pagador: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(municipio_ibge: u32)]
+pub struct RegistrarGrupo<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin)]
+    pub config: Account<'info, Config>,
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + GrupoCredenciados::INIT_SPACE,
+        seeds = [b"grupo".as_ref(), &municipio_ibge.to_le_bytes()],
+        bump
+    )]
+    pub grupo: Account<'info, GrupoCredenciados>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AtualizarGrupo<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin)]
+    pub config: Account<'info, Config>,
+    #[account(
+        mut,
+        seeds = [b"grupo".as_ref(), &grupo.municipio_ibge.to_le_bytes()],
+        bump = grupo.bump
+    )]
+    pub grupo: Account<'info, GrupoCredenciados>,
+    pub admin: Signer<'info>,
+}
+
 /// Ato que só o custodiante corrente pode praticar.
 #[derive(Accounts)]
 pub struct AtoDoCustodiante<'info> {
@@ -545,6 +789,16 @@ pub struct EventoCustodia {
     pub ts: i64,
 }
 
+/// Toda mudança na árvore de credenciados vira evento com a raiz nova. É o que
+/// permite refazer a árvore do zero e conferir que ninguém entrou escondido.
+#[event]
+pub struct EventoGrupo {
+    pub municipio_ibge: u32,
+    pub raiz: [u8; 32],
+    pub membros: u32,
+    pub ts: i64,
+}
+
 #[event]
 pub struct EventoAncoragem {
     pub instituicao: Pubkey,
@@ -575,4 +829,8 @@ pub enum ErroCustodia {
     NaoEhComite,
     #[msg("Trilha de eventos cheia")]
     TrilhaCheia,
+    #[msg("A prova não tem o formato esperado")]
+    ProvaMalFormada,
+    #[msg("A prova não confere")]
+    ProvaInvalida,
 }
