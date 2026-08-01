@@ -51,6 +51,9 @@ importers:
       mocha:
         specifier: ^10.8.2
         version: 10.8.2
+      node-seal:
+        specifier: ^7.0.0
+        version: 7.0.0
       ts-mocha:
         specifier: ^10.1.0
         version: 10.1.0(mocha@10.8.2)
@@ -901,6 +904,9 @@ packages:
   node-gyp-build@4.8.4:
     resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
+
+  node-seal@7.0.0:
+    resolution: {integrity: sha512-R5q8PQ6z3Hyq7x1uunNf5yZtDuSlffYkWFA5uvzL2fYF/IHL7+KwCsRdLlG3inBU1dMUgakDWiuqf0csMvcang==}
 
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
@@ -2211,6 +2217,8 @@ snapshots:
 
   node-gyp-build@4.8.4:
     optional: true
+
+  node-seal@7.0.0: {}
 
   normalize-path@3.0.0: {}
 

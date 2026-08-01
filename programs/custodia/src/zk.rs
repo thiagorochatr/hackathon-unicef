@@ -148,6 +148,32 @@ mod testes {
         assert!(conferir_prova(&PROVA, &e).is_err());
     }
 
+    /// Os mesmos bytes estão fixados no teste em TypeScript (`tests/cripto.ts`).
+    /// Os dois lados calculam por conta própria e chegam ao mesmo valor: se um
+    /// mudar sem o outro, um dos dois testes cai.
+    ///
+    /// Existe porque essa divergência já aconteceu, e o único sintoma foi "a
+    /// prova não confere" — sem dizer onde nem por quê.
+    #[test]
+    fn escopo_bate_com_o_lado_do_cliente() {
+        let casos: [(u32, u8, u32, [u8; 8]); 3] = [
+            (
+                3552205,
+                2,
+                202608,
+                [0x36, 0x33, 0xcd, 0x02, 0x00, 0x03, 0x17, 0x70],
+            ),
+            (0, 0, 0, [0; 8]),
+            (1, 1, 1, [0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01]),
+        ];
+        for (municipio, setor, periodo, esperado) in casos {
+            let v = valor_do_escopo(municipio, setor, periodo);
+            // Os 24 primeiros bytes são zero: o escopo cabe em 8.
+            assert_eq!(&v[0..24], &[0u8; 24], "escopo transbordou");
+            assert_eq!(&v[24..32], &esperado, "escopo divergente");
+        }
+    }
+
     #[test]
     fn rejeita_mensagem_trocada() {
         // É o que impede reaproveitar a prova para abrir um caso diferente.
