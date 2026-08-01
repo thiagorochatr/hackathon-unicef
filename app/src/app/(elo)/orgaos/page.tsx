@@ -65,23 +65,112 @@ const SISTEMAS = [
   },
 ];
 
+/**
+ * Os que recebem.
+ *
+ * Não emitem nada: recebem um caso e agem sobre ele. E o que os três
+ * compartilham não é banco de dados — é a mesma cadeia pública. Cada um lê o
+ * estado do caso porque ele está lá, não porque alguém sincronizou.
+ */
+const RECEBEM = [
+  {
+    href: "/creas",
+    orgao: "creas" as const,
+    sigla: "PSE",
+    secretaria: "Secretaria Municipal de Assistência e Desenvolvimento Social",
+    sistema: "Sistema de Proteção Social Especial",
+    unidade: "CREAS Centro",
+    tarefa: "Os casos em acompanhamento do PAEFI.",
+    onde:
+      "É onde o caso cai primeiro — e a técnica descobre que ele chegou sem que ninguém o tenha encaminhado.",
+  },
+  {
+    href: "/conselho",
+    orgao: "ct" as const,
+    sigla: "CT",
+    secretaria: "Conselho Tutelar — 2ª Região",
+    sistema: "Registro de Medidas de Proteção",
+    unidade: "Conselheiros eleitos, mandato 2024/2028",
+    tarefa: "A fila do plantão e as medidas de proteção.",
+    onde:
+      "É onde os casos historicamente somem. Aqui o relógio fica no topo da tela: caso parado deixou de ser caso esquecido.",
+  },
+  {
+    href: "/mp",
+    orgao: "mp" as const,
+    sigla: "MP",
+    secretaria: "Ministério Público do Estado de São Paulo",
+    sistema: "Sistema de Acompanhamento de Procedimentos",
+    unidade: "Promotoria da Infância e Juventude — Sorocaba",
+    tarefa: "Os procedimentos da promotoria.",
+    onde:
+      "É onde aparece a entrada sem remetente: o caso que subiu sozinho porque o prazo venceu, e que ninguém decidiu mandar.",
+  },
+];
+
+interface Sistema {
+  href: string;
+  orgao: string;
+  sigla: string;
+  secretaria: string;
+  sistema: string;
+  unidade: string;
+  tarefa: string;
+  onde: string;
+}
+
+function Cartao({ s }: { s: Sistema }) {
+  return (
+    <a
+      href={s.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex flex-col overflow-hidden rounded border border-[var(--borda)] bg-[var(--fundo-2)] transition hover:border-[var(--texto-3)]"
+    >
+      {/* A barra do sistema, na cor dele — a diferença antes do clique.
+          `data-barra` e não `data-orgao`: aqui se quer a cor, não a casca
+          clara de página inteira que o portal liga. */}
+      <div data-barra={s.orgao} className="flex items-center gap-2 px-3 py-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-white/70 text-[0.5rem] font-bold">
+          {s.sigla}
+        </div>
+        <p className="text-[0.6875rem] font-bold leading-tight">{s.secretaria}</p>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div>
+          <p className="text-sm font-semibold">{s.sistema}</p>
+          <p className="text-[0.6875rem] text-[var(--texto-3)]">{s.unidade}</p>
+        </div>
+        <p className="text-[0.8125rem] text-[var(--texto-2)]">
+          <span className="text-[var(--texto)]">A tarefa:</span> {s.tarefa}
+        </p>
+        <p className="text-[0.75rem] text-[var(--texto-2)]">{s.onde}</p>
+        <p className="mt-auto pt-2 text-[0.6875rem] text-[var(--texto-3)] underline group-hover:text-[var(--texto-2)]">
+          abrir {s.href} em outra aba
+        </p>
+      </div>
+    </a>
+  );
+}
+
 export default function TelaOrgaos() {
   return (
     <div className="space-y-10">
       <header className="max-w-3xl space-y-3">
         <p className="rotulo">Os sistemas</p>
         <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-          Três sistemas que não se conhecem.
+          Seis sistemas que não se conhecem.
         </h1>
         <p className="text-[var(--texto-2)]">
-          Isto não é um menu de abas do nosso produto. São três softwares de
+          Isto não é um menu de abas do nosso produto. São seis softwares de
           instituições diferentes, com contratos diferentes, fornecedores diferentes e
           logins diferentes — e é assim mesmo que eles são hoje, em qualquer município
-          do país. Nenhum deles sabe da existência dos outros dois.
+          do país. Nenhum deles sabe da existência dos outros.
         </p>
         <p className="text-sm text-[var(--texto-2)]">
           Eles nem contam a mesma coisa: a saúde conta pacientes, a educação conta
-          alunos, a assistência conta famílias. Uma criança é três registros que nunca
+          alunos, a assistência conta famílias. Uma criança é vários registros que nunca
           se olharam.{" "}
           <strong className="text-[var(--texto)]">
             Unificar isso num banco só seria a resposta errada
@@ -94,40 +183,36 @@ export default function TelaOrgaos() {
         </p>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {SISTEMAS.map((s) => (
-          <a
-            key={s.href}
-            href={s.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col overflow-hidden rounded border border-[var(--borda)] bg-[var(--fundo-2)] transition hover:border-[var(--texto-3)]"
-          >
-            {/* A barra do sistema, na cor dele — a diferença antes do clique.
-                `data-barra` e não `data-orgao`: aqui se quer a cor, não a casca
-                clara de página inteira que o portal liga. */}
-            <div data-barra={s.orgao} className="flex items-center gap-2 px-3 py-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-white/70 text-[0.5rem] font-bold">
-                {s.sigla}
-              </div>
-              <p className="text-[0.6875rem] font-bold leading-tight">{s.secretaria}</p>
-            </div>
+      <section className="space-y-3">
+        <h2 className="rotulo">Os que emitem</h2>
+        <p className="max-w-2xl text-sm text-[var(--texto-2)]">
+          Mandam um envelope lacrado e vão embora. Nenhum deles fica sabendo se o
+          envelope encontrou outro.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {SISTEMAS.map((s) => (
+            <Cartao key={s.href} s={s} />
+          ))}
+        </div>
+      </section>
 
-            <div className="flex flex-1 flex-col gap-2 p-3">
-              <div>
-                <p className="text-sm font-semibold">{s.sistema}</p>
-                <p className="text-[0.6875rem] text-[var(--texto-3)]">{s.unidade}</p>
-              </div>
-              <p className="text-[0.8125rem] text-[var(--texto-2)]">
-                <span className="text-[var(--texto)]">A tarefa:</span> {s.tarefa}
-              </p>
-              <p className="text-[0.75rem] text-[var(--texto-2)]">{s.onde}</p>
-              <p className="mt-auto pt-2 text-[0.6875rem] text-[var(--texto-3)] underline group-hover:text-[var(--texto-2)]">
-                abrir {s.href} em outra aba
-              </p>
-            </div>
-          </a>
-        ))}
+      <section className="space-y-3">
+        <h2 className="rotulo">Os que recebem</h2>
+        <p className="max-w-2xl text-sm text-[var(--texto-2)]">
+          Não emitem nada: recebem um caso e agem sobre ele, e cada providência é uma
+          transação assinada.{" "}
+          <strong className="text-[var(--texto)]">
+            O que estes três compartilham não é banco de dados — é a mesma cadeia
+            pública.
+          </strong>{" "}
+          Cada um lê o estado do caso porque ele está lá, não porque alguém sincronizou.
+          A informação comum é de quem é a bola e até quando, nunca a vida da criança.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {RECEBEM.map((s) => (
+            <Cartao key={s.href} s={s} />
+          ))}
+        </div>
       </section>
 
       <section className="max-w-3xl space-y-3 rounded border border-[var(--borda)] bg-[var(--fundo-2)] p-4">
@@ -164,6 +249,15 @@ export default function TelaOrgaos() {
               fora
             </Link>
             .
+          </li>
+          <li>
+            <strong className="text-[var(--texto)]">
+              Nos três que recebem, não existe botão de arquivar.
+            </strong>{" "}
+            Encerrar exige registrar desfecho, e o desfecho fica na rede. Enquanto o
+            prazo corre, ou alguém assume, ou o caso vai sozinho ao Ministério Público —
+            e no portal do MP ele aparece como entrada{" "}
+            <em>sem remetente</em>, porque de fato ninguém o mandou.
           </li>
         </ul>
       </section>

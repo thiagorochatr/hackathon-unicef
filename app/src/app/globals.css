@@ -182,6 +182,34 @@ body {
   --barra: #7d4916;
 }
 
+/* CREAS — proteção especial. Mesma secretaria do CRAS, outro sistema: por isso a
+   cor é da mesma família, mais escura. Em município de verdade é assim mesmo —
+   proteção básica e especial não compartilham prontuário. */
+[data-orgao="creas"],
+[data-barra="creas"] {
+  --acento: #99394b;
+  --acento-fraco: #f7e6e9;
+  --barra: #7b2d3b;
+}
+
+/* Conselho Tutelar — grafite de sistema federal antigo. O CT não é de secretaria
+   nenhuma: é órgão autônomo, de conselheiros eleitos, e o software dele tem a
+   cara de quem foi feito há quinze anos e nunca mais mexeram. */
+[data-orgao="ct"],
+[data-barra="ct"] {
+  --acento: #48606c;
+  --acento-fraco: #e6ecef;
+  --barra: #37474f;
+}
+
+/* Ministério Público — roxo de instituição de justiça. */
+[data-orgao="mp"],
+[data-barra="mp"] {
+  --acento: #5d3a86;
+  --acento-fraco: #eee8f6;
+  --barra: #4a2d6b;
+}
+
 [data-barra] {
   background: var(--barra);
   color: #fff;
