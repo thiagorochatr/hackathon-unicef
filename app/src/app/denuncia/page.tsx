@@ -480,7 +480,7 @@ export default function TelaDenuncia() {
         : a lista aqui é pequena, e anonimato real precisa de milhares de pessoas —
         criptografia não conserta conjunto pequeno. Quem repassa o sinal enxerga o
         endereço de rede de quem chamou. E o limite de um sinal por mês existe porque
-        ligá-lo à criança poria na rede um valor estável dela, que é justamente o que
+        ligá-lo à criança colocaria na rede um valor estável dela, que é justamente o que
         este projeto não faz.
       </p>
     </div>

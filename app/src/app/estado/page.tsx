@@ -122,7 +122,7 @@ export default function TelaEstado() {
             {
               t: "Limite de sinal protegido por criança, e não por mês",
               e: "no plano",
-              d: "Hoje cada credenciado emite um sinal protegido por setor por mês. Ligar o limite à criança poria na rede um valor estável dela, permitindo juntar todos os sinais sobre a mesma pessoa ao longo dos anos — e é justamente isso que este projeto não faz. Resolver exige um caminho que ainda não construímos.",
+              d: "Hoje cada credenciado emite um sinal protegido por setor por mês. Ligar o limite à criança colocaria na rede um valor estável dela, permitindo juntar todos os sinais sobre a mesma pessoa ao longo dos anos — e é justamente isso que este projeto não faz. Resolver exige um caminho que ainda não construímos.",
               ok: false,
             },
           ].map((i) => (

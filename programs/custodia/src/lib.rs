@@ -120,7 +120,7 @@ pub mod custodia {
         // sentido ao anulador. Se viesse de fora, bastaria inventar um escopo
         // novo a cada vez para o limite de uma emissão por período não valer.
         //
-        // Ele **não** inclui a criança, e isso é deliberado: incluir poria na
+        // Ele **não** inclui a criança, e isso é deliberado: incluir colocaria na
         // rede um valor estável por criança, permitindo correlacionar todos os
         // sinais sobre a mesma. O custo é o limite ser por período, e não por
         // criança. É a troca que o princípio de não pôr nada de criança na rede
