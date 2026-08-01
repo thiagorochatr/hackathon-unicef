@@ -13,7 +13,7 @@ import {
 } from "@/lib/cadeia";
 import type { Estado, Papel } from "@/lib/tipos";
 import { confereAgente, hashDoAgente, identificacaoDoAgente } from "@/lib/agente";
-import { registrar } from "@/lib/diario";
+import { registrar } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

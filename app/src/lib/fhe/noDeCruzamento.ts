@@ -1,7 +1,7 @@
 import "server-only";
 import { carregarCifra, fatorDeMascaramento, nucleo } from "./parametros";
 import type { Setor } from "../tipos";
-import { registrar } from "../diario";
+import { registrar } from "../log";
 
 /**
  * O nó de cruzamento.

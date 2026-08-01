@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { comite, pdaAberturas, pdaInstituicao, programa } from "../cadeia";
-import { registrar } from "../diario";
+import { registrar } from "../log";
 
 /**
  * O registro público das aberturas do comitê.

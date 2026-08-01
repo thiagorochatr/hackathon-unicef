@@ -35,7 +35,7 @@ export async function obterApelido(identificador: string): Promise<string> {
   const d = await r.json();
   if (d.erro) throw new Error(d.erro);
 
-  void fetch("/api/diario", {
+  void fetch("/api/log", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

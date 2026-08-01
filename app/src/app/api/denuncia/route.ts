@@ -14,7 +14,7 @@ import { paraBytes32, provaParaBytes } from "@/lib/zk/formato";
 import { apelidoDaCrianca } from "@/lib/pseudonimo";
 import { CRIANCA_FICTICIA } from "@/lib/fixtures";
 import { SETORES, type Setor } from "@/lib/tipos";
-import { registrar } from "@/lib/diario";
+import { registrar } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

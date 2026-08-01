@@ -77,10 +77,10 @@ export async function gerarProva(
   );
   const ms = Math.round(performance.now() - t0);
 
-  // O diário fica no servidor, mas este evento nasce aqui — a prova é gerada
+  // O log fica no servidor, mas este evento nasce aqui — a prova é gerada
   // nesta máquina, e o tempo dela é dos números que mais valem mostrar. O que
   // viaja são grandezas, nunca o segredo nem o apelido.
-  void fetch("/api/diario", {
+  void fetch("/api/log", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -94,7 +94,7 @@ export async function gerarProva(
       },
     }),
   }).catch(() => {
-    // o diário é acessório: se falhar, a denúncia segue
+    // o log é acessório: se falhar, a denúncia segue
   });
 
   return {

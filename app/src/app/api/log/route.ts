@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { ler, limparDiario, registrar } from "@/lib/diario";
+import { ler, limparLog, registrar } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * O diário do sistema.
+ * O log do sistema.
  *
  * `GET` devolve o que aconteceu desde um ponto, para a tela acompanhar ao vivo
  * sem repetir o que já mostrou.
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * `POST` existe porque parte da criptografia acontece **no navegador de quem
  * denuncia**, e não aqui — a prova nasce lá, e o tempo dela é dos números mais
  * importantes de mostrar. O que o navegador manda são grandezas: quanto levou,
- * quantos bytes. Nada que identifique ninguém, e mesmo assim o diário corta
+ * quantos bytes. Nada que identifique ninguém, e mesmo assim o log corta
  * qualquer valor comprido antes de guardar.
  */
 
@@ -35,8 +35,8 @@ export async function POST(req: Request) {
   }
 
   if (corpo.limpar) {
-    limparDiario();
-    registrar("app", "diário zerado para a demonstração");
+    limparLog();
+    registrar("app", "log zerado para a demonstração");
     return NextResponse.json({ ok: true });
   }
 

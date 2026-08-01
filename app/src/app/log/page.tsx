@@ -44,7 +44,7 @@ const hora = (ts: number) =>
   "." +
   String(ts % 1000).padStart(3, "0");
 
-export default function TelaDiario() {
+export default function TelaLog() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [filtro, setFiltro] = useState<Evento["camada"] | null>(null);
   const [seguindo, setSeguindo] = useState(true);
@@ -52,7 +52,7 @@ export default function TelaDiario() {
   const fim = useRef<HTMLDivElement>(null);
 
   const buscar = useCallback(async () => {
-    const r = await fetch(`/api/diario?desde=${ultimo.current}`);
+    const r = await fetch(`/api/log?desde=${ultimo.current}`);
     const d = await r.json();
     if (!d.eventos?.length) return;
     ultimo.current = d.ultimo;
@@ -84,7 +84,7 @@ export default function TelaDiario() {
   const mostrados = filtro ? eventos.filter((e) => e.camada === filtro) : eventos;
 
   async function zerar() {
-    await fetch("/api/diario", {
+    await fetch("/api/log", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ limpar: true }),
@@ -96,7 +96,7 @@ export default function TelaDiario() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
-        <p className="rotulo">Diário do sistema</p>
+        <p className="rotulo">Log do sistema</p>
         <h1 className="text-2xl font-semibold tracking-tight">
           O que a criptografia está fazendo, agora.
         </h1>
@@ -109,17 +109,17 @@ export default function TelaDiario() {
         </p>
       </header>
 
-      {/* O que este diário nunca mostra */}
+      {/* O que este log nunca mostra */}
       <section className="cartao space-y-2 border-[color-mix(in_srgb,var(--perigo)_35%,transparent)] p-4">
         <p className="text-xs font-semibold text-[var(--perigo)]">
-          O QUE ESTE DIÁRIO NUNCA MOSTRA
+          O QUE ESTE LOG NUNCA MOSTRA
         </p>
         <p className="text-sm text-[var(--texto-2)]">
           Identificador de criança · apelido · segredo de quem denuncia · conteúdo de
           envelope · chave secreta.
         </p>
         <p className="rounded-lg bg-[var(--fundo-3)] p-3 text-xs text-[var(--texto-2)]">
-          E não é promessa de quem escreveu o código, é impedimento: o diário{" "}
+          E não é promessa de quem escreveu o código, é impedimento: o log{" "}
           <strong className="text-[var(--texto)]">
             recusa qualquer sequência longa sem espaço
           </strong>{" "}
@@ -167,7 +167,7 @@ export default function TelaDiario() {
         </button>
       </div>
 
-      {/* O diário */}
+      {/* O log */}
       <section className="space-y-1.5">
         {mostrados.length === 0 ? (
           <div className="cartao p-6 text-sm text-[var(--texto-2)]">
@@ -230,7 +230,7 @@ export default function TelaDiario() {
       </section>
 
       <p className="border-t border-[var(--borda)] pt-6 text-xs text-[var(--texto-3)]">
-        O diário vive na memória do servidor e some quando ele reinicia — é para
+        O log vive na memória do servidor e some quando ele reinicia — é para
         acompanhar, não para guardar. O que precisa durar já está na rede, e cada
         linha marcada com assinatura leva direto para lá.
       </p>

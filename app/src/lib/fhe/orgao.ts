@@ -1,7 +1,7 @@
 import "server-only";
 import { chavePublica } from "./comite";
 import { nucleo } from "./parametros";
-import { registrar } from "../diario";
+import { registrar } from "../log";
 
 /**
  * O lado do órgão que emite o sinal.

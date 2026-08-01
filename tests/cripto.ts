@@ -176,21 +176,21 @@ describe("invariantes de criptografia", () => {
     });
   });
 
-  describe("trava do diário", () => {
+  describe("trava do log", () => {
     /**
-     * O diário existe para mostrar a jurados que a criptografia está rodando.
-     * Um diário que vazasse segredo, apelido ou envelope derrubaria justamente
+     * O log existe para mostrar a jurados que a criptografia está rodando.
+     * Um log que vazasse segredo, apelido ou envelope derrubaria justamente
      * o que ele deveria demonstrar — então a trava é parte da funcionalidade,
      * não um detalhe de implementação.
      */
-    let diario: typeof import("../app/src/lib/diario");
+    let log: typeof import("../app/src/lib/log");
 
     before(async () => {
-      diario = await import("../app/src/lib/diario");
+      log = await import("../app/src/lib/log");
     });
 
     const ultimoValor = (chave: string) => {
-      const { eventos } = diario.ler();
+      const { eventos } = log.ler();
       return String(eventos[eventos.length - 1].detalhes?.[chave]);
     };
 
@@ -205,9 +205,9 @@ describe("invariantes de criptografia", () => {
         chave: "a".repeat(64),
       };
       for (const [nome, valor] of Object.entries(perigosos)) {
-        diario.registrar("app", "teste", { [nome]: valor });
+        log.registrar("app", "teste", { [nome]: valor });
         const guardado = ultimoValor(nome);
-        assert.include(guardado, "recusado", `${nome} passou pelo diário`);
+        assert.include(guardado, "recusado", `${nome} passou pelo log`);
         assert.notInclude(
           guardado,
           valor.slice(0, 24),
@@ -223,7 +223,7 @@ describe("invariantes de criptografia", () => {
         conta: "r · s · (s−1), limite 2",
         numero: 576684,
       };
-      diario.registrar("app", "teste", legitimos);
+      log.registrar("app", "teste", legitimos);
       for (const [nome, valor] of Object.entries(legitimos)) {
         assert.equal(
           ultimoValor(nome),
@@ -234,8 +234,8 @@ describe("invariantes de criptografia", () => {
     });
 
     it("a própria descrição do evento passa pela trava", () => {
-      diario.registrar("app", "vazamento: " + "b".repeat(40));
-      const { eventos } = diario.ler();
+      log.registrar("app", "vazamento: " + "b".repeat(40));
+      const { eventos } = log.ler();
       assert.include(eventos[eventos.length - 1].acao, "recusado");
     });
   });

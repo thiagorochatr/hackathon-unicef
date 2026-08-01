@@ -1,6 +1,6 @@
 import "server-only";
 import { carregarCifra, nucleo } from "./parametros";
-import { registrar } from "../diario";
+import { registrar } from "../log";
 
 /**
  * O comitê é a única parte que tem a chave capaz de abrir os envelopes.

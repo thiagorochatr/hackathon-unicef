@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { ristretto255_oprf } from "@noble/curves/ed25519.js";
 import { apelidoEmHex, normalizarIdentificador } from "./apelido";
-import { registrar } from "./diario";
+import { registrar } from "./log";
 
 /**
  * Apelido da criança.

@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * O diário do sistema: o que aconteceu, camada por camada.
+ * O log do sistema: o que aconteceu, camada por camada.
  *
  * Existe para uma coisa só — deixar visível que a criptografia está mesmo
  * rodando. É fácil desenhar um slide dizendo "somamos sem abrir"; é outra coisa
@@ -11,8 +11,8 @@ import "server-only";
  *
  * ## A trava
  *
- * Um diário que vazasse o identificador da criança, o apelido ou o segredo de
- * quem denuncia seria pior do que não ter diário nenhum: derrubaria justamente
+ * Um log que vazasse o identificador da criança, o apelido ou o segredo de
+ * quem denuncia seria pior do que não ter log nenhum: derrubaria justamente
  * o que ele deveria demonstrar. Por isso o valor de qualquer detalhe é
  * **limitado a poucos caracteres**. Não é disciplina de quem escreve o código,
  * é impedimento: um envelope, uma chave ou um apelido inteiro não cabem aqui
@@ -30,7 +30,7 @@ const LIMITE_VALOR = 88;
  *
  * Só limitar o tamanho não bastava: um segredo de identidade tem 44 caracteres
  * e passaria inteirinho por um corte de 88. O que separa um valor legítimo de um
- * segredo aqui não é o comprimento — é a **forma**. O que este diário registra é
+ * segredo aqui não é o comprimento — é a **forma**. O que este log registra é
  * frase e número: "576.684 letras", "não tem chave secreta", "1 bit". Um trecho
  * de 24 caracteres seguidos sem espaço, de letras e números, não é isso. É
  * envelope, chave, apelido ou resumo.
@@ -55,16 +55,16 @@ export interface Evento {
 }
 
 const global_ = globalThis as unknown as {
-  __diario?: { eventos: Evento[]; proximo: number };
+  __log?: { eventos: Evento[]; proximo: number };
 };
-global_.__diario ??= { eventos: [], proximo: 1 };
-const diario = global_.__diario;
+global_.__log ??= { eventos: [], proximo: 1 };
+const registro = global_.__log;
 
 /**
  * Corta qualquer valor comprido.
  *
  * É aqui que a trava mora. Se alguém, um dia, tentar registrar um envelope ou
- * uma chave, o que vai para o diário é o começo e o aviso de que foi cortado —
+ * uma chave, o que vai para o log é o começo e o aviso de que foi cortado —
  * nunca a coisa inteira.
  */
 function encurtar(valor: string | number): string | number {
@@ -87,8 +87,8 @@ export function registrar(
     seguros[chave] = encurtar(valor);
   }
 
-  diario.eventos.push({
-    id: diario.proximo++,
+  registro.eventos.push({
+    id: registro.proximo++,
     ts: Date.now(),
     camada,
     acao: String(encurtar(String(acao))).slice(0, 120),
@@ -96,22 +96,22 @@ export function registrar(
     assinatura,
   });
 
-  if (diario.eventos.length > CAPACIDADE) {
-    diario.eventos.splice(0, diario.eventos.length - CAPACIDADE);
+  if (registro.eventos.length > CAPACIDADE) {
+    registro.eventos.splice(0, registro.eventos.length - CAPACIDADE);
   }
 }
 
 /** Devolve o que aconteceu depois de um certo ponto. */
 export function ler(desde = 0): { eventos: Evento[]; ultimo: number } {
-  const eventos = desde ? diario.eventos.filter((e) => e.id > desde) : diario.eventos;
+  const eventos = desde ? registro.eventos.filter((e) => e.id > desde) : registro.eventos;
   return {
     eventos,
-    ultimo: diario.eventos.length ? diario.eventos[diario.eventos.length - 1].id : 0,
+    ultimo: registro.eventos.length ? registro.eventos[registro.eventos.length - 1].id : 0,
   };
 }
 
-export function limparDiario(): void {
-  diario.eventos.length = 0;
+export function limparLog(): void {
+  registro.eventos.length = 0;
 }
 
 /** Marca o tempo de uma operação e registra quanto levou. */
