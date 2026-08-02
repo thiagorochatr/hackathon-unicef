@@ -29,7 +29,8 @@ const brl = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 
 const sol = (lamports: number) => (lamports / LAMPORTS_PER_SOL).toFixed(6);
 
 async function main() {
-  process.env.ANCHOR_PROVIDER_URL ??= "https://api.devnet.solana.com";
+  process.env.ANCHOR_PROVIDER_URL ??=
+    process.env.RPC_URL ?? "https://api.devnet.solana.com";
   process.env.ANCHOR_WALLET ??= join(process.env.HOME ?? "", ".config/solana/id.json");
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.getProvider() as anchor.AnchorProvider;

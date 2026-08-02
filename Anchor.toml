@@ -15,6 +15,16 @@ url = "https://api.apr.dev"
 # devnet: o validador local 4.1.1 não habilita a versão de SBPF que as
 # platform-tools disponíveis emitem; a devnet habilita. Testar contra ela tem
 # o efeito colateral desejável de gerar transações verificáveis no explorer.
+#
+# `cluster = "devnet"` aponta para a devnet pública, que é compartilhada e
+# recusa requisições com frequência. Este arquivo não lê variável de ambiente,
+# então para usar um endereço dedicado nos testes e no deploy passe
+# `ANCHOR_PROVIDER_URL` na linha de comando:
+#
+#   ANCHOR_PROVIDER_URL=$RPC_URL anchor test --skip-local-validator
+#   anchor deploy --provider.cluster $RPC_URL
+#
+# A aplicação e os scripts já leem `RPC_URL` sozinhos.
 cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 

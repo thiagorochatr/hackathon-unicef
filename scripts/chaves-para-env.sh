@@ -31,4 +31,7 @@ done
 # Chave usada para calcular o apelido da criança. Qualquer texto longo serve,
 # desde que seja o mesmo em todos os órgãos e não seja adivinhável.
 printf 'CHAVE_APELIDO=%s\n' "$(head -c 32 /dev/urandom | base64 | tr -d '=+/')"
-printf 'RPC_URL=%s\n' 'https://api.devnet.solana.com'
+# Endereço da rede. O padrão é a devnet pública, que é compartilhada e recusa
+# requisições com frequência. Troque por um endereço dedicado (Helius,
+# QuickNode e outros têm faixa gratuita) e todo o resto passa a usá-lo.
+printf 'RPC_URL=%s\n' "${RPC_URL:-https://api.devnet.solana.com}"

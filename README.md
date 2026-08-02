@@ -96,7 +96,7 @@ solana program deploy target/deploy/custodia.so \
   --program-id target/deploy/custodia-keypair.json -u devnet
 
 # 4. cadastrar os órgãos e apontar o Ministério Público
-ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
+ANCHOR_PROVIDER_URL=${RPC_URL:-https://api.devnet.solana.com} \
 ANCHOR_WALLET=$HOME/.config/solana/id.json \
 pnpm exec ts-node scripts/preparar-devnet.ts
 
@@ -121,6 +121,45 @@ Atalhos disponíveis na raiz, todos delegando para `app/` quando é o caso:
 As chaves dos órgãos ficam **no servidor** e nunca chegam ao navegador. Isso não é só cuidado de
 protótipo: é como funcionaria de verdade, com o sistema do órgão assinando, não o computador de quem
 atende.
+
+## Endereço da rede (RPC)
+
+Por padrão tudo aponta para `https://api.devnet.solana.com`, que é o endereço público da devnet.
+Ele funciona, e é compartilhado por todo mundo que testa em Solana — o que significa que recusa
+requisições com frequência. Num dia de desenvolvimento foram **3.400 recusas**, e com duas telas
+abertas ao mesmo tempo a demonstração travou: a tela do caso relê a rede sozinha, cada leitura custa
+três chamadas, e seis portais fazem isso em paralelo.
+
+Para uma apresentação, use um endereço dedicado. Helius, QuickNode, Alchemy e outros dão uma faixa
+gratuita que sobra para isto. Definida a variável, **tudo passa a usá-la** — aplicação, scripts e o
+gerador de variáveis de ambiente:
+
+```bash
+export RPC_URL='https://devnet.helius-rpc.com/?api-key=SUA-CHAVE'
+```
+
+Para a aplicação, a variável entra no mesmo arquivo das chaves:
+
+```bash
+echo "RPC_URL=$RPC_URL" >> app/.env.local     # local
+```
+
+Na Vercel, é mais uma variável de ambiente do projeto, ao lado das `CHAVE_*`.
+
+O `Anchor.toml` é a única exceção: ele não lê variável de ambiente, então nos testes e no deploy o
+endereço vai na linha de comando.
+
+```bash
+ANCHOR_PROVIDER_URL=$RPC_URL anchor test --skip-local-validator --skip-deploy --skip-build
+anchor deploy --provider.cluster $RPC_URL
+```
+
+**O endereço costuma trazer a chave de API dentro dele** — por isso ele é variável de ambiente e
+não constante no código, e por isso `.env.local` está fora do versionamento.
+
+Independentemente do endereço escolhido, a aplicação repete sozinha quando leva uma recusa por
+excesso, com espera crescente e respeitando o `Retry-After` que o servidor mandar. Um RPC dedicado
+também tem limite, só que muito mais alto.
 
 ## Publicar na Vercel
 

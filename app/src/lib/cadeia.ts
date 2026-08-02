@@ -22,7 +22,55 @@ import type { Papel } from "./tipos";
  * quem atende.
  */
 
+/**
+ * O endereço da rede, num lugar só.
+ *
+ * O padrão é a devnet pública, que é compartilhada por todo mundo que testa em
+ * Solana e recusa requisições com frequência — foram 3.400 recusas num dia de
+ * desenvolvimento, e com duas telas abertas a demonstração travou. Defina
+ * `RPC_URL` com um endereço dedicado (Helius, QuickNode e outros têm faixa
+ * gratuita) e tudo passa a usá-lo: aplicação, scripts e testes.
+ *
+ * O endereço costuma trazer uma chave de API dentro dele. Por isso ele é
+ * variável de ambiente e não constante no código — e por isso `.env.local` está
+ * fora do versionamento.
+ */
 export const RPC = process.env.RPC_URL ?? "https://api.devnet.solana.com";
+
+/** Se ainda estamos na rede compartilhada, onde a recusa é rotina. */
+export const RPC_COMPARTILHADO = RPC.includes("api.devnet.solana.com");
+
+/**
+ * Uma recusa por excesso não é erro: é para tentar de novo daqui a pouco.
+ *
+ * A biblioteca já repete algumas vezes sozinha, mas desiste rápido demais para o
+ * ritmo da devnet pública. Aqui a espera cresce a cada tentativa, e respeita o
+ * `Retry-After` quando o servidor manda um.
+ *
+ * Vale para qualquer endereço: um RPC dedicado também tem limite, só que muito
+ * mais alto. Isto é o que faz a diferença entre a tela recarregar sozinha e a
+ * tela mostrar erro.
+ */
+const ESPERAS_MS = [400, 1200, 3000, 6000];
+
+const buscarComPaciencia: typeof fetch = async (entrada, opcoes) => {
+  let ultima: Response | undefined;
+  for (let tentativa = 0; tentativa <= ESPERAS_MS.length; tentativa += 1) {
+    const r = await fetch(entrada, opcoes);
+    if (r.status !== 429) return r;
+    ultima = r;
+    if (tentativa === ESPERAS_MS.length) break;
+    const pedido = Number(r.headers.get("retry-after")) * 1000;
+    const espera = Number.isFinite(pedido) && pedido > 0 ? pedido : ESPERAS_MS[tentativa];
+    await new Promise((r) => setTimeout(r, espera));
+  }
+  return ultima!;
+};
+
+const opcoesDaConexao = {
+  commitment: "confirmed" as const,
+  fetch: buscarComPaciencia,
+};
 const DIR_CHAVES = process.env.KEYS_DIR ?? join(process.cwd(), "..", "keys");
 
 const enc = new TextEncoder();
@@ -109,14 +157,14 @@ class CarteiraLocal {
 }
 
 export function programa(assinante: Keypair): Program<Custodia> {
-  const conexao = new Connection(RPC, "confirmed");
+  const conexao = new Connection(RPC, opcoesDaConexao);
   const provider = new AnchorProvider(conexao, new CarteiraLocal(assinante), {
     commitment: "confirmed",
   });
   return new Program(idl as anchor.Idl, provider) as unknown as Program<Custodia>;
 }
 
-export const conexao = () => new Connection(RPC, "confirmed");
+export const conexao = () => new Connection(RPC, opcoesDaConexao);
 
 // --- endereços derivados -----------------------------------------------------
 

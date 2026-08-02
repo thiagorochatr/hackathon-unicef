@@ -45,7 +45,8 @@ const SETORES = [
 ] as const;
 
 async function main() {
-  process.env.ANCHOR_PROVIDER_URL ??= "https://api.devnet.solana.com";
+  process.env.ANCHOR_PROVIDER_URL ??=
+    process.env.RPC_URL ?? "https://api.devnet.solana.com";
   process.env.ANCHOR_WALLET ??= join(
     process.env.HOME ?? "",
     ".config/solana/id.json",
