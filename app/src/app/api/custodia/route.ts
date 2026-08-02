@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import {
   comite,
@@ -217,10 +218,108 @@ async function buscarCaso(alertaIdHex: string) {
   };
 }
 
+/**
+ * Os casos de um órgão, perguntados à rede.
+ *
+ * ## O que isto substitui
+ *
+ * Antes, qual caso olhar vinha do navegador: um número guardado no `localStorage`
+ * quando o cruzamento abria o caso. Funcionava para quem percorria o roteiro
+ * inteiro na mesma janela, e só para essa pessoa — quem abrisse `/creas` em outro
+ * aparelho via um portal vazio, embora o caso existisse na rede. O sistema de um
+ * órgão de verdade não é avisado por um navegador sobre qual caso é dele.
+ *
+ * ## Como a rede responde isso
+ *
+ * A conta do caso guarda quem responde por ele num lugar fixo: depois dos 8 bytes
+ * que dizem o tipo da conta e dos 32 do número do alerta, os 32 seguintes são a
+ * chave do custodiante. Então dá para pedir à rede todas as contas deste programa
+ * em que aqueles bytes são a chave deste órgão.
+ *
+ * São duas perguntas, porque um caso pode interessar ao órgão de dois jeitos:
+ *
+ * - **custodiante** — ele responde pelo caso agora;
+ * - **pendente para ele** — outro órgão passou e ele ainda não confirmou. Repare
+ *   que aqui o custodiante ainda é o outro, de propósito: passar adiante não tira
+ *   a responsabilidade de quem passou. Sem esta segunda pergunta, um caso passado
+ *   ao Conselho Tutelar não apareceria na tela do Conselho.
+ */
+const DESLOCAMENTO_CUSTODIANTE = 8 + 32;
+const DESLOCAMENTO_PENDENTE = DESLOCAMENTO_CUSTODIANTE + 32;
+/** `Option` em Borsh começa com um byte: 0 é vazio, 1 é preenchido. */
+const MARCA_PREENCHIDO = anchor.utils.bytes.bs58.encode(Buffer.from([1]));
+
+async function casosDoOrgao(papel: Papel) {
+  const chave = instituicao(papel).publicKey.toBase58();
+  const prog = programa(comite());
+
+  const [respondePor, passadosParaEle] = await Promise.all([
+    prog.account.caso.all([
+      { memcmp: { offset: DESLOCAMENTO_CUSTODIANTE, bytes: chave } },
+    ]),
+    prog.account.caso.all([
+      { memcmp: { offset: DESLOCAMENTO_PENDENTE, bytes: MARCA_PREENCHIDO } },
+      { memcmp: { offset: DESLOCAMENTO_PENDENTE + 1, bytes: chave } },
+    ]),
+  ]);
+
+  const porEndereco = new Map<string, (typeof respondePor)[number]>();
+  for (const c of [...respondePor, ...passadosParaEle]) {
+    porEndereco.set(c.publicKey.toBase58(), c);
+  }
+
+  return [...porEndereco.values()]
+    .map(({ account: a }) => ({
+      alertaId: hex(a.alertaId as number[]),
+      responsavel: papelDe(a.custodiante),
+      pendentePara: a.pendentePara ? papelDe(a.pendentePara) : null,
+      estado: lerEstado(a.estado as Record<string, unknown>),
+      prazo: a.prazo.toNumber() * 1000,
+      criadoEm: a.criadoEm.toNumber() * 1000,
+      eventos: a.eventos,
+    }))
+    // Mais recente primeiro: é o que o profissional quer ver ao abrir a tela.
+    .sort((x, y) => y.criadoEm - x.criadoEm);
+}
+
+/** Mesma janela curta da leitura de caso, e pelo mesmo motivo. */
+const listas = new Map<
+  string,
+  { quando: number; promessa: ReturnType<typeof casosDoOrgao> }
+>();
+
+function listarCasos(papel: Papel) {
+  const agora = Date.now();
+  const guardada = listas.get(papel);
+  if (guardada && agora - guardada.quando < JANELA_MS) return guardada.promessa;
+  const promessa = casosDoOrgao(papel).catch((e) => {
+    listas.delete(papel);
+    throw e;
+  });
+  listas.set(papel, { quando: agora, promessa });
+  return promessa;
+}
+
+const PAPEIS_VALIDOS = new Set<string>(["ubs", "escola", "cras", "creas", "ct", "mp"]);
+
 export async function GET(req: Request) {
-  const alertaId = new URL(req.url).searchParams.get("alertaId");
+  const busca = new URL(req.url).searchParams;
+  const papel = busca.get("papel");
+
+  if (papel) {
+    if (!PAPEIS_VALIDOS.has(papel)) {
+      return NextResponse.json({ erro: "papel desconhecido" }, { status: 400 });
+    }
+    try {
+      return NextResponse.json({ casos: await listarCasos(papel as Papel) });
+    } catch (e) {
+      return NextResponse.json({ erro: String(e) }, { status: 500 });
+    }
+  }
+
+  const alertaId = busca.get("alertaId");
   if (!alertaId) {
-    return NextResponse.json({ erro: "alertaId ausente" }, { status: 400 });
+    return NextResponse.json({ erro: "alertaId ou papel ausente" }, { status: 400 });
   }
   try {
     const caso = await lerCaso(alertaId);

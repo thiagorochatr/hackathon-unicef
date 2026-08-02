@@ -3,6 +3,7 @@
 import { useAgora } from "@/components/Relogio";
 import { ESTADO_ROTULO } from "@/lib/tipos";
 import {
+  CASOS_NA_TELA,
   faltaPara,
   LINK_TX,
   useEscaladaAutomatica,
@@ -67,38 +68,48 @@ export default function ProtecaoEspecial() {
                 </tr>
               </thead>
               <tbody>
-                {/* O caso do roteiro, lido da rede */}
-                {caso && (
-                  <tr
-                    style={{
-                      background: "color-mix(in srgb, var(--acento) 10%, transparent)",
-                    }}
-                  >
-                    <td className="font-mono text-[0.75rem]">
-                      {caso.alertaId.slice(0, 16)}…
-                    </td>
-                    <td>
-                      Rede de proteção — alerta automático
-                      <span className="block text-[0.6875rem] font-bold text-[var(--acento)]">
-                        sem remetente
-                      </span>
-                    </td>
-                    <td className="font-mono text-[0.75rem]">
-                      {new Date(caso.criadoEm).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="text-[0.75rem]">{ESTADO_ROTULO[caso.estado]}</td>
-                    <td
-                      className="text-center font-mono text-[0.75rem] font-bold"
-                      style={
-                        agora !== null && agora > caso.prazo
-                          ? { color: "var(--perigo)" }
-                          : undefined
-                      }
+                {/* Os casos sob a chave do CREAS, perguntados à rede. Clicar
+                    troca qual deles está aberto abaixo. */}
+                {(p.casos ?? []).slice(0, CASOS_NA_TELA).map((c) => {
+                  const aberto = c.alertaId === p.alertaId;
+                  const parado = c.estado === "Encerrado" || c.estado === "Escalado";
+                  return (
+                    <tr
+                      key={c.alertaId}
+                      onClick={() => p.escolher(c.alertaId)}
+                      style={{
+                        cursor: "pointer",
+                        background: aberto
+                          ? "color-mix(in srgb, var(--acento) 12%, transparent)"
+                          : "color-mix(in srgb, var(--acento) 4%, transparent)",
+                      }}
                     >
-                      {p.encerrado ? "—" : faltaPara(caso.prazo, agora)}
-                    </td>
-                  </tr>
-                )}
+                      <td className="font-mono text-[0.75rem]">
+                        {c.alertaId.slice(0, 16)}…
+                      </td>
+                      <td>
+                        Rede de proteção — alerta automático
+                        <span className="block text-[0.6875rem] font-bold text-[var(--acento)]">
+                          sem remetente
+                        </span>
+                      </td>
+                      <td className="font-mono text-[0.75rem]">
+                        {new Date(c.criadoEm).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="text-[0.75rem]">{ESTADO_ROTULO[c.estado]}</td>
+                      <td
+                        className="text-center font-mono text-[0.75rem] font-bold"
+                        style={
+                          !parado && agora !== null && agora > c.prazo
+                            ? { color: "var(--perigo)" }
+                            : undefined
+                        }
+                      >
+                        {parado ? "—" : faltaPara(c.prazo, agora)}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {CASOS_ANTERIORES.map((c) => (
                   <tr key={c.protocolo}>
                     <td className="font-mono text-[0.75rem]">{c.protocolo}</td>
@@ -118,6 +129,13 @@ export default function ProtecaoEspecial() {
               </tbody>
             </table>
           </div>
+          <p className="border-t border-[var(--borda)] px-3 py-2 text-[0.6875rem] text-[var(--texto-2)]">
+            {p.casos === null
+              ? "Perguntando à rede quais casos estão sob a chave desta unidade…"
+              : p.casos.length === 0
+                ? "Nenhum caso da rede de proteção sob a chave desta unidade."
+                : `Mostrando ${Math.min(p.casos.length, CASOS_NA_TELA)} de ${p.casos.length} casos sob a chave desta unidade, os mais recentes primeiro. A lista não veio deste computador: veio da rede, que respondeu quais casos são do CREAS. Clique em um para abrir.`}
+          </p>
         </div>
 
         {!caso ? (
@@ -202,7 +220,7 @@ export default function ProtecaoEspecial() {
                     <button
                       className="botao-gov"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("creas"))}
+                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("creas", caso.alertaId))}
                     >
                       {p.ocupado === "aceitar"
                         ? "confirmando…"
@@ -217,7 +235,7 @@ export default function ProtecaoEspecial() {
                         disabled={p.ocupado !== null}
                         title={d.ajuda}
                         onClick={() =>
-                          p.executar(`t-${d.papel}`, () => p.acoes.transferir(d.papel))
+                          p.executar(`t-${d.papel}`, () => p.acoes.transferir(d.papel, caso.alertaId))
                         }
                       >
                         {p.ocupado === `t-${d.papel}`
@@ -229,7 +247,7 @@ export default function ProtecaoEspecial() {
                     <button
                       className="botao-gov-vazado"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar())}
+                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar(caso.alertaId))}
                     >
                       {p.ocupado === "desfecho"
                         ? "assinando…"

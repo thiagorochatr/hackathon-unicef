@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAgora } from "@/components/Relogio";
 import { ESTADO_ROTULO } from "@/lib/tipos";
 import {
+  CASOS_NA_TELA,
   faltaPara,
   LINK_TX,
   useEscaladaAutomatica,
@@ -116,27 +117,37 @@ export default function ConselhoTutelar() {
                 </tr>
               </thead>
               <tbody>
-                {caso && (
-                  <tr
-                    style={{
-                      background: "color-mix(in srgb, var(--acento) 10%, transparent)",
-                    }}
-                  >
-                    <td className="font-mono text-[0.75rem]">
-                      {caso.alertaId.slice(0, 16)}…
-                    </td>
-                    <td>
-                      Rede de proteção — convergência de setores
-                      <span className="block text-[0.6875rem] font-bold text-[var(--acento)]">
-                        com prazo em contagem
-                      </span>
-                    </td>
-                    <td className="font-mono text-[0.75rem]">
-                      {new Date(caso.criadoEm).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="text-[0.75rem]">{ESTADO_ROTULO[caso.estado]}</td>
-                  </tr>
-                )}
+                {/* Os casos do Conselho, perguntados à rede. */}
+                {(p.casos ?? []).slice(0, CASOS_NA_TELA).map((c) => {
+                  const aberto = c.alertaId === p.alertaId;
+                  const parado = c.estado === "Encerrado" || c.estado === "Escalado";
+                  return (
+                    <tr
+                      key={c.alertaId}
+                      onClick={() => p.escolher(c.alertaId)}
+                      style={{
+                        cursor: "pointer",
+                        background: aberto
+                          ? "color-mix(in srgb, var(--acento) 12%, transparent)"
+                          : "color-mix(in srgb, var(--acento) 4%, transparent)",
+                      }}
+                    >
+                      <td className="font-mono text-[0.75rem]">
+                        {c.alertaId.slice(0, 16)}…
+                      </td>
+                      <td>
+                        Rede de proteção — convergência de setores
+                        <span className="block text-[0.6875rem] font-bold text-[var(--acento)]">
+                          {parado ? "encerrado" : "com prazo em contagem"}
+                        </span>
+                      </td>
+                      <td className="font-mono text-[0.75rem]">
+                        {new Date(c.criadoEm).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="text-[0.75rem]">{ESTADO_ROTULO[c.estado]}</td>
+                    </tr>
+                  );
+                })}
                 {FILA.map((f) => (
                   <tr key={f.registro}>
                     <td className="font-mono text-[0.75rem]">{f.registro}</td>
@@ -151,7 +162,8 @@ export default function ConselhoTutelar() {
           <p className="border-t border-[var(--borda)] px-3 py-2 text-[0.6875rem] text-[var(--texto-2)]">
             Os quatro registros de baixo não têm prazo, e é assim hoje: entram, ficam
             &ldquo;aguardando atendimento&rdquo; e nada acontece se continuarem
-            aguardando. O de cima tem.
+            aguardando. Os de cima têm — e a lista deles não veio deste computador,
+            veio da rede, que respondeu quais casos são do Conselho.
           </p>
         </div>
 
@@ -207,7 +219,7 @@ export default function ConselhoTutelar() {
                     <button
                       className="botao-gov"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("ct"))}
+                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("ct", caso.alertaId))}
                     >
                       {p.ocupado === "aceitar"
                         ? "confirmando…"
@@ -218,7 +230,7 @@ export default function ConselhoTutelar() {
                     <button
                       className="botao-gov-vazado"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("t-mp", () => p.acoes.transferir("mp"))}
+                      onClick={() => p.executar("t-mp", () => p.acoes.transferir("mp", caso.alertaId))}
                     >
                       {p.ocupado === "t-mp"
                         ? "assinando…"
@@ -229,7 +241,7 @@ export default function ConselhoTutelar() {
                     <button
                       className="botao-gov"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar())}
+                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar(caso.alertaId))}
                     >
                       {p.ocupado === "desfecho"
                         ? "assinando…"

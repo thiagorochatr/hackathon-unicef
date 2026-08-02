@@ -101,15 +101,28 @@ export const acoes = {
     return { assinatura };
   },
 
-  transferir(destino: Papel) {
-    return chamar({ acao: "transferir", alertaId: ler().alertaId, destino });
+  /*
+   * As três ações abaixo aceitam o número do caso por parâmetro.
+   *
+   * Sem ele, caem no número guardado neste navegador — que é como as telas do
+   * Elo funcionam, porque foi este navegador que percorreu o roteiro. Os portais
+   * dos órgãos passam o número explicitamente, porque descobriram qual caso é
+   * deles perguntando à rede, e não à memória de quem está olhando.
+   */
+
+  transferir(destino: Papel, alertaId?: string) {
+    return chamar({
+      acao: "transferir",
+      alertaId: alertaId ?? ler().alertaId,
+      destino,
+    });
   },
 
-  aceitar(quem: Papel) {
+  aceitar(quem: Papel, alertaId?: string) {
     const atual = ler();
     return chamar({
       acao: "aceitar",
-      alertaId: atual.alertaId,
+      alertaId: alertaId ?? atual.alertaId,
       quem,
       prazoSeg: atual.prazoSeg,
     });
@@ -129,12 +142,12 @@ export const acoes = {
   },
 
   /** Pode ser acionado por qualquer chave depois do prazo. */
-  levarAoMp() {
-    return chamar({ acao: "escalar", alertaId: ler().alertaId });
+  levarAoMp(alertaId?: string) {
+    return chamar({ acao: "escalar", alertaId: alertaId ?? ler().alertaId });
   },
 
-  encerrar() {
-    return chamar({ acao: "desfecho", alertaId: ler().alertaId });
+  encerrar(alertaId?: string) {
+    return chamar({ acao: "desfecho", alertaId: alertaId ?? ler().alertaId });
   },
 
   avancarCiclo() {

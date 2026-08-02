@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ESTADO_ROTULO } from "@/lib/tipos";
-import { LINK_TX, usePainelDoOrgao } from "../_lib/custodia";
+import { CASOS_NA_TELA, LINK_TX, usePainelDoOrgao } from "../_lib/custodia";
 import { CLASSES, MP, PROCEDIMENTOS } from "./dados";
 
 export default function Promotoria() {
@@ -115,37 +115,48 @@ export default function Promotoria() {
                 </tr>
               </thead>
               <tbody>
-                {caso && (
-                  <tr
-                    style={{
-                      background: "color-mix(in srgb, var(--acento) 10%, transparent)",
-                    }}
-                  >
-                    <td className="font-mono text-[0.75rem]">
-                      {caso.alertaId.slice(0, 16)}…
-                    </td>
-                    <td className="text-[0.75rem]">
-                      {subiuSozinho ? "Entrada automática" : "Acompanhamento da rede"}
-                    </td>
-                    <td>
-                      {subiuSozinho ? (
-                        <>
-                          Prazo vencido —{" "}
-                          <strong className="text-[var(--acento)]">sem remetente</strong>
-                          <span className="block text-[0.6875rem] text-[var(--texto-2)]">
-                            {caso.eventos} transações na trilha até aqui
-                          </span>
-                        </>
-                      ) : (
-                        "Rede de proteção — caso em custódia de outro órgão"
-                      )}
-                    </td>
-                    <td className="font-mono text-[0.75rem]">
-                      {new Date(caso.criadoEm).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td className="text-[0.75rem]">{ESTADO_ROTULO[caso.estado]}</td>
-                  </tr>
-                )}
+                {/* Os procedimentos desta promotoria, perguntados à rede. */}
+                {(p.casos ?? []).slice(0, CASOS_NA_TELA).map((c) => {
+                  const aberto = c.alertaId === p.alertaId;
+                  // Subiu sozinho: chegou por vencimento de prazo, sem remetente.
+                  const automatica = c.estado === "Escalado" || c.estado === "Encerrado";
+                  return (
+                    <tr
+                      key={c.alertaId}
+                      onClick={() => p.escolher(c.alertaId)}
+                      style={{
+                        cursor: "pointer",
+                        background: aberto
+                          ? "color-mix(in srgb, var(--acento) 12%, transparent)"
+                          : "color-mix(in srgb, var(--acento) 4%, transparent)",
+                      }}
+                    >
+                      <td className="font-mono text-[0.75rem]">
+                        {c.alertaId.slice(0, 16)}…
+                      </td>
+                      <td className="text-[0.75rem]">
+                        {automatica ? "Entrada automática" : "Acompanhamento da rede"}
+                      </td>
+                      <td>
+                        {automatica ? (
+                          <>
+                            Prazo vencido —{" "}
+                            <strong className="text-[var(--acento)]">sem remetente</strong>
+                            <span className="block text-[0.6875rem] text-[var(--texto-2)]">
+                              {c.eventos} transações na trilha
+                            </span>
+                          </>
+                        ) : (
+                          "Rede de proteção — caso em custódia de outro órgão"
+                        )}
+                      </td>
+                      <td className="font-mono text-[0.75rem]">
+                        {new Date(c.criadoEm).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="text-[0.75rem]">{ESTADO_ROTULO[c.estado]}</td>
+                    </tr>
+                  );
+                })}
                 {PROCEDIMENTOS.map((x) => (
                   <tr key={x.numero}>
                     <td className="font-mono text-[0.75rem]">{x.numero}</td>
@@ -160,7 +171,9 @@ export default function Promotoria() {
           </div>
           <p className="border-t border-[var(--borda)] px-3 py-2 text-[0.6875rem] text-[var(--texto-2)]">
             Todos os procedimentos de baixo têm remetente: alguém decidiu contar. É essa
-            dependência que a entrada automática quebra.
+            dependência que a entrada automática quebra. A lista de cima não veio deste
+            computador: veio da rede, que respondeu quais casos estão sob a chave desta
+            promotoria.
           </p>
         </div>
 
@@ -224,7 +237,7 @@ export default function Promotoria() {
                     <button
                       className="botao-gov"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("mp"))}
+                      onClick={() => p.executar("aceitar", () => p.acoes.aceitar("mp", caso.alertaId))}
                     >
                       {p.ocupado === "aceitar" ? "confirmando…" : "Receber e autuar"}
                     </button>
@@ -233,7 +246,7 @@ export default function Promotoria() {
                     <button
                       className="botao-gov"
                       disabled={p.ocupado !== null}
-                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar())}
+                      onClick={() => p.executar("desfecho", () => p.acoes.encerrar(caso.alertaId))}
                     >
                       {p.ocupado === "desfecho"
                         ? "assinando…"
