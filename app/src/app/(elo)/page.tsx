@@ -5,7 +5,7 @@ import { useEstado, acoes } from "@/lib/store";
 import { useCaso } from "@/lib/useCaso";
 import { useSinais } from "@/lib/useSinais";
 import { LIMIAR } from "@/lib/fixtures";
-import { PAPEIS, PAPEL } from "@/lib/tipos";
+import { jaEscalou, PAPEIS, PAPEL } from "@/lib/tipos";
 
 interface Passo {
   n: number;
@@ -64,7 +64,10 @@ export default function Inicio() {
       titulo: "O prazo vence e ninguém aceitou",
       descricao: "O caso vai sozinho para o Ministério Público. Ninguém segura.",
       href: "/mp",
-      feito: caso?.estado === "Escalado",
+      // Não é `estado === "Escalado"`: isso é o estado de agora, e desmarcava o
+      // passo assim que o MP registrava o desfecho — como se a escalada não
+      // tivesse acontecido. Quem guarda o que já aconteceu é a trilha.
+      feito: jaEscalou(caso),
     },
     {
       n: 7,

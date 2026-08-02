@@ -126,6 +126,26 @@ export interface Registro {
   assinatura: string;
   ts: number;
   erro: boolean;
+  /**
+   * Nome da instrução, lido do log da transação. Vem `null` quando a rede
+   * recusou a leitura — a trilha continua aparecendo, só sem o rótulo.
+   */
+  instrucao: string | null;
+  /** O mesmo passo dito em português. */
+  passo: string | null;
+}
+
+/**
+ * Se o caso já subiu sozinho ao Ministério Público **em algum momento**.
+ *
+ * Não dá para perguntar isso à conta: ela guarda o estado de agora, e depois do
+ * desfecho o estado é "Encerrado". A resposta está na trilha, que é justamente
+ * o que a trilha existe para responder.
+ */
+export function jaEscalou(caso: CasoNaCadeia | null): boolean {
+  if (!caso) return false;
+  if (caso.estado === "Escalado") return true;
+  return caso.registros.some((r) => r.instrucao === "Escalar" && !r.erro);
 }
 
 /**

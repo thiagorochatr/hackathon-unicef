@@ -30,6 +30,67 @@ function prazoValido(bruto: unknown): number {
   return Math.min(PRAZO_MAX, Math.max(PRAZO_MIN, Math.round(n)));
 }
 
+/**
+ * Que passo foi cada transação da trilha.
+ *
+ * ## De onde sai
+ *
+ * A conta do caso guarda só o estado **de agora**. Ela não diz que já houve uma
+ * escalada, e não pode dizer: caber em 189 bytes fixos é o que permite afirmar
+ * que não há mais nada lá dentro. O histórico vive nas transações, e o Anchor
+ * escreve o nome da instrução no log de cada uma — `Instruction: Escalar`.
+ *
+ * ## Por que tem cache
+ *
+ * Transação confirmada não muda nunca, e a tela do caso relê a cada poucos
+ * segundos. Sem cache, cada leitura buscaria a trilha inteira de novo e a rede
+ * pública de testes devolveria 429 — que foi exatamente o que aconteceu ao medir.
+ * Guardando por assinatura, só as transações novas custam alguma coisa.
+ */
+const tipoPorAssinatura = new Map<string, string>();
+
+const PASSO: Record<string, string> = {
+  AbrirCaso: "caso aberto",
+  AbrirCasoPorDenuncia: "caso aberto por denúncia protegida",
+  TransferirPara: "passado adiante",
+  Aceitar: "recebimento confirmado",
+  Escalar: "prazo venceu — foi ao Ministério Público",
+  RegistrarDesfecho: "desfecho registrado",
+};
+
+const MARCA = "Program log: Instruction: ";
+
+/**
+ * Uma por vez, e não em lote.
+ *
+ * `getParsedTransactions` manda tudo num pedido só, o que parecia melhor — mas a
+ * rede pública de testes recusa esse método com "too many requests for a
+ * specific RPC call" mesmo quando aceita os outros. Medido: o lote falhava e a
+ * trilha ficava sem rótulo, enquanto `getTransaction` avulso passava.
+ *
+ * Sai barato porque o cache já filtrou: numa providência assinada, isto é uma
+ * chamada só, para a transação nova.
+ */
+async function tiposDaTrilha(assinaturas: string[]): Promise<Map<string, string>> {
+  const faltando = assinaturas.filter((s) => !tipoPorAssinatura.has(s)).slice(0, 8);
+  const rede = conexao();
+  for (const assinatura of faltando) {
+    try {
+      const tx = await rede.getTransaction(assinatura, {
+        maxSupportedTransactionVersion: 0,
+      });
+      const linha = tx?.meta?.logMessages?.find((l) => l.includes(MARCA));
+      const nome = linha?.split(MARCA)[1]?.trim();
+      if (nome) tipoPorAssinatura.set(assinatura, nome);
+    } catch {
+      // Rede recusando: esta transação fica sem rótulo e a próxima leitura tenta
+      // de novo, porque nada foi guardado. A trilha continua aparecendo — é
+      // melhor uma linha sem nome do que a tela do caso inteira falhando.
+    }
+  }
+  return tipoPorAssinatura;
+}
+
 /** O enum vem do Anchor como { aberto: {} }; aqui vira string. */
 function lerEstado(bruto: Record<string, unknown>): Estado {
   const chave = Object.keys(bruto)[0];
@@ -50,7 +111,55 @@ function bytesAleatorios(): Buffer {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-async function lerCaso(alertaIdHex: string) {
+/**
+ * Uma leitura só, dividida por todas as telas abertas.
+ *
+ * Cada leitura de caso custa três chamadas à rede, e agora existem sete telas
+ * que releem sozinhas de três em três segundos — os seis portais e o
+ * visualizador. Com três abas abertas ao mesmo tempo isso vira uma chamada por
+ * segundo contra a rede pública de testes, que responde 429 e derruba a tela
+ * inteira. Foi medido, não suposto.
+ *
+ * Com esta janela curta, N abas custam o mesmo que uma. O atraso é menor que o
+ * intervalo com que as telas já releem, então nada fica visivelmente parado — e
+ * uma providência assinada aparece na volta seguinte, como já aparecia.
+ *
+ * Uma chamada em voo é reaproveitada em vez de duplicada: sem isso, três abas
+ * chegando juntas ainda disparariam três leituras, porque nenhuma teria
+ * terminado a tempo de preencher o cache.
+ */
+const JANELA_MS = 1500;
+const leituras = new Map<
+  string,
+  { quando: number; promessa: Promise<Awaited<ReturnType<typeof buscarCaso>>> }
+>();
+
+function lerCaso(alertaIdHex: string) {
+  const agora = Date.now();
+  const guardada = leituras.get(alertaIdHex);
+  if (guardada && agora - guardada.quando < JANELA_MS) return guardada.promessa;
+  return lerCasoAgora(alertaIdHex);
+}
+
+/**
+ * Leitura sem janela, para quem vai **escrever**.
+ *
+ * As instruções de passar adiante, aceitar e encerrar escolhem qual chave assina
+ * a partir de quem é o responsável agora. Uma leitura de um segundo e meio atrás
+ * escolheria a chave anterior, o programa recusaria a transação com razão, e a
+ * tela mostraria um erro que não é erro de ninguém. Quem escreve pergunta à rede.
+ */
+function lerCasoAgora(alertaIdHex: string) {
+  const promessa = buscarCaso(alertaIdHex).catch((e) => {
+    // Falha não fica guardada: a próxima tentativa tem que ir à rede de novo.
+    leituras.delete(alertaIdHex);
+    throw e;
+  });
+  leituras.set(alertaIdHex, { quando: Date.now(), promessa });
+  return promessa;
+}
+
+async function buscarCaso(alertaIdHex: string) {
   const id = Buffer.from(alertaIdHex, "hex");
   const endereco = pdaCaso(id);
   const prog = programa(comite());
@@ -68,6 +177,7 @@ async function lerCaso(alertaIdHex: string) {
   ]);
 
   const agenteHex = hex(conta.agenteHash as number[]);
+  const tipos = await tiposDaTrilha(assinaturas.map((s) => s.signature));
 
   return {
     alertaId: hex(conta.alertaId as number[]),
@@ -92,11 +202,18 @@ async function lerCaso(alertaIdHex: string) {
     registros: assinaturas
       .slice()
       .reverse()
-      .map((s) => ({
-        assinatura: s.signature,
-        ts: (s.blockTime ?? 0) * 1000,
-        erro: Boolean(s.err),
-      })),
+      .map((s) => {
+        const nome = tipos.get(s.signature);
+        return {
+          assinatura: s.signature,
+          ts: (s.blockTime ?? 0) * 1000,
+          erro: Boolean(s.err),
+          /** Nome cru da instrução, como o Anchor o escreveu no log. */
+          instrucao: nome ?? null,
+          /** O mesmo passo em português, quando é um que a gente conhece. */
+          passo: nome ? (PASSO[nome] ?? nome) : null,
+        };
+      }),
   };
 }
 
@@ -170,7 +287,7 @@ export async function POST(req: Request) {
         const { alertaId, destino } = corpo;
         if (!alertaId || !destino) throw new Error("faltam dados");
         const id = Buffer.from(alertaId, "hex");
-        const atual = await lerCaso(alertaId);
+        const atual = await lerCasoAgora(alertaId);
         if (!atual?.responsavel) throw new Error("caso sem responsável conhecido");
         const quemAssina = instituicao(atual.responsavel);
         await permitirEscrita(req, "passar adiante", quemAssina);
@@ -226,7 +343,7 @@ export async function POST(req: Request) {
         const { alertaId } = corpo;
         if (!alertaId) throw new Error("faltam dados");
         const id = Buffer.from(alertaId, "hex");
-        const atual = await lerCaso(alertaId);
+        const atual = await lerCasoAgora(alertaId);
         if (!atual?.responsavel) throw new Error("caso sem responsável conhecido");
         const quemAssina = instituicao(atual.responsavel);
         await permitirEscrita(req, "encerrar", quemAssina);

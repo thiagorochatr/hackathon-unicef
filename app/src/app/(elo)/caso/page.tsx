@@ -215,6 +215,16 @@ export default function TelaCaso() {
                 {i + 1}
               </span>
               <div className="min-w-0 flex-1">
+                {/* O nome do passo vem do log da própria transação, não daqui:
+                    é o Anchor que escreve "Instruction: Escalar" na rede. */}
+                {r.passo && (
+                  <p className="text-sm font-medium">
+                    {r.passo}
+                    <span className="ml-2 font-mono text-xs text-[var(--texto-3)]">
+                      {r.instrucao}
+                    </span>
+                  </p>
+                )}
                 <a
                   href={LINK_TX(r.assinatura)}
                   target="_blank"
